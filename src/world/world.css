@@ -1,0 +1,412 @@
+.explorer {
+  min-width: 0;
+}
+.explorer-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0 23px;
+}
+.explorer-heading h1 {
+  font-size: 36px;
+  margin: 9px 0 0;
+  letter-spacing: -0.9px;
+}
+.explorer-heading h1 em {
+  font-size: 32px;
+}
+.world-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 8px;
+  letter-spacing: 1.4px;
+  color: #b4cbbd;
+  white-space: nowrap;
+}
+.world-badge i {
+  width: 5px;
+  height: 5px;
+  background: #a6c7b4;
+  border-radius: 50%;
+  box-shadow: 0 0 9px #a6c7b477;
+}
+.world-frame {
+  height: clamp(540px, 72vh, 820px);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #b7b2cf22;
+  border-radius: 20px;
+  background: radial-gradient(
+    ellipse at 50% 55%,
+    #2b334b 0%,
+    #1a2235 45%,
+    #141b2d 100%
+  );
+}
+.world-map {
+  display: block;
+  height: 100%;
+  width: 100%;
+  touch-action: none;
+  cursor: crosshair;
+  outline-offset: -4px !important;
+}
+.world-map:active {
+  cursor: grabbing;
+}
+.map-topline {
+  pointer-events: none;
+  position: absolute;
+  top: 23px;
+  left: 25px;
+  right: 25px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  letter-spacing: 1.3px;
+  color: #b1b2c7;
+  z-index: 1;
+}
+.map-topline > span:last-child {
+  font-style: italic;
+  letter-spacing: 0;
+  font-family: "Playfair Display", serif;
+  font-size: 12px;
+  color: #989eb7;
+}
+.camera-tools {
+  position: absolute;
+  top: 58px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  background: #121a2bdd;
+  border: 1px solid #b6b8d22b;
+  border-radius: 10px;
+}
+.camera-tools button {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  font-size: 23px;
+  border-radius: 7px;
+  color: #e1d4c0;
+}
+.camera-tools button:hover,
+.camera-tools button[aria-pressed="true"] {
+  background: #d1bdd627;
+}
+.camera-tools button:disabled {
+  opacity: 0.3;
+}
+.camera-tools output {
+  font-size: 9px;
+  color: #b2b7ce;
+  padding: 4px 0;
+}
+.camera-tools > span {
+  width: 24px;
+  border-top: 1px solid #ffffff16;
+  margin: 2px 0;
+}
+.explore-tip {
+  position: absolute;
+  bottom: 22px;
+  left: 22px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  pointer-events: none;
+  color: #b2b7ca;
+  font-size: 10px;
+  line-height: 1.9;
+}
+.compass {
+  font-size: 10px;
+  text-align: center;
+  color: #dac9aa;
+  line-height: 1.3;
+}
+.compass:first-line {
+  font-size: 8px;
+}
+kbd {
+  font-family: inherit;
+  font-size: 9px;
+  color: #d4cbbf;
+  background: #e2d3b711;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+.location-action {
+  position: absolute;
+  bottom: 24px;
+  right: 20px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.location-action button {
+  background: #d4c2a4;
+  border: 1px solid #e8d8bb;
+  color: #242e3d;
+  padding: 12px 16px;
+  border-radius: 9px;
+  font-size: 11px;
+  box-shadow: 0 4px 22px #0003;
+}
+.location-action .stop-walking {
+  background: #182235e8;
+  color: #d1c7bc;
+  border-color: #7e84905c;
+  font-size: 10px;
+  padding: 10px;
+}
+.location-action kbd {
+  background: #242e3d11;
+  color: #242e3d;
+  margin-left: 10px;
+}
+.building-portal {
+  cursor: pointer;
+  outline: none;
+}
+.building-portal:focus-visible .building-hit {
+  stroke: #ecd3a5;
+  stroke-width: 3;
+  stroke-dasharray: 8 6;
+  fill: #f2d6a40c;
+}
+.building-portal:hover rect:not(.building-hit),
+.building-portal.nearby rect:not(.building-hit) {
+  stroke: #e6cea5;
+  fill: #2b3949;
+}
+.path-indicator {
+  pointer-events: none;
+}
+.explorer-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-top: 16px;
+  min-height: 44px;
+}
+.explorer-footer p {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #aab0c4;
+}
+.explorer-footer nav {
+  display: flex;
+  gap: 7px;
+  flex-shrink: 0;
+}
+.explorer-footer nav button {
+  border: 1px solid #b6b1c02a;
+  background: #b7b2cc08;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 10px;
+  color: #d5c7b4;
+}
+.explorer-footer nav button:hover {
+  background: #b7b2cc15;
+}
+.wanderer.walking {
+  animation: walking 0.3s ease-in-out infinite;
+}
+.water-ripples {
+  animation: ripple 5s ease-in-out infinite;
+}
+@keyframes walking {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes ripple {
+  50% {
+    opacity: 0.25;
+    transform: translateX(3px);
+  }
+}
+.journal-location {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: #d6c198;
+  margin-bottom: 12px;
+}
+.journal:focus {
+  outline: 2px solid #d3bf9c;
+  outline-offset: 4px;
+}
+.journey-side {
+  padding-top: 8px;
+}
+.mobile-journal-close {
+  display: none;
+}
+@media (min-width: 761px) {
+  .app-shell {
+    max-width: 1920px;
+  }
+  .app-shell > header {
+    height: 88px;
+    padding: 0 32px;
+  }
+  .app-shell > main {
+    grid-template-columns: minmax(0, 1fr) 310px;
+    gap: 25px;
+    padding: 30px 32px 24px;
+  }
+  .app-shell > main .journey-side {
+    padding-top: 0;
+  }
+  .progress-card {
+    padding: 22px;
+  }
+  .journal-body {
+    padding: 20px;
+  }
+  .entries {
+    max-height: 235px;
+  }
+}
+@media (max-width: 1150px) and (min-width: 761px) {
+  .app-shell > main {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    padding: 24px 20px;
+    gap: 18px;
+  }
+  .explorer-heading h1 {
+    font-size: 30px;
+  }
+  .explorer-heading h1 em {
+    font-size: 27px;
+  }
+  .world-badge {
+    display: none;
+  }
+  .world-frame {
+    height: 590px;
+  }
+  .explorer-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .map-topline > span:last-child {
+    display: none;
+  }
+  .location-action {
+    bottom: 77px;
+  }
+  .explore-tip {
+    font-size: 9px;
+  }
+}
+@media (max-width: 760px) {
+  .app-shell > main {
+    padding: 20px 12px;
+    gap: 25px;
+  }
+  .explorer-heading {
+    padding: 0 7px;
+    margin-bottom: 18px;
+  }
+  .explorer-heading h1 {
+    font-size: 29px;
+  }
+  .explorer-heading h1 em {
+    font-size: 27px;
+  }
+  .explorer-heading .eyebrow {
+    font-size: 7px;
+    letter-spacing: 1.3px;
+  }
+  .world-badge {
+    display: none;
+  }
+  .world-frame {
+    height: 540px;
+    border-radius: 16px;
+  }
+  .map-topline {
+    left: 17px;
+    top: 20px;
+  }
+  .map-topline > span:last-child {
+    display: none;
+  }
+  .camera-tools {
+    right: 10px;
+    top: 48px;
+  }
+  .camera-tools button {
+    width: 34px;
+    height: 34px;
+  }
+  .explore-tip {
+    font-size: 9px;
+    left: 15px;
+    bottom: 17px;
+  }
+  .location-action {
+    bottom: 77px;
+    right: 12px;
+  }
+  .explorer-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    margin: 15px 7px 0;
+    gap: 12px;
+  }
+  .explorer-footer p {
+    font-size: 10px;
+  }
+  .explorer-footer nav {
+    width: 100%;
+  }
+  .explorer-footer nav button {
+    flex: 1;
+    padding: 13px;
+  }
+  .journey-side {
+    padding: 0 7px;
+  }
+  .journal.is-open {
+    border-color: #d8c09788;
+    scroll-margin-top: 18px;
+  }
+  .journal.is-open .mobile-journal-close {
+    display: block;
+    margin: 15px 15px 0 auto;
+    border: 1px solid #c4b4b444;
+    background: #ffffff0a;
+    border-radius: 7px;
+    padding: 10px 15px;
+    font-size: 12px;
+  }
+  .journal.is-open .entries {
+    max-height: 30svh;
+  }
+  .journal.is-open input {
+    font-size: 16px;
+  }
+  .journal.is-open .tabs button {
+    padding: 16px 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wanderer.walking,
+  .water-ripples {
+    animation: none;
+  }
+}

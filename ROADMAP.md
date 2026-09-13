@@ -19,8 +19,14 @@
 
 ## Checkpoint 2: first playable world
 
-- Agree on final art direction based on the running prototype.
-- Character customisation and movement; clickable buildings with keyboard equivalents.
+- [x] Expand the island with forest, pond, fountain, paths and waterfall.
+- [x] Click/tap walking, WASD/arrow movement and obstacle-aware routes.
+- [x] Home Base and Observatory visits open the existing journals on arrival.
+- [x] Camera zoom, drag, follow and whole-island view; mobile navigation.
+- [x] Navigation regression tests and GitHub checks.
+- [x] Keep mission and idea drafts separate while switching journals.
+- [ ] Refine final art direction based on the owner's feedback.
+- [ ] Character appearance customisation and building interiors.
 - First unlockable decoration and placement; reduced-motion and sound controls.
 - Mission/idea editing, archiving, search and tags.
 - Versioned save repository, export/import and recovery from invalid saves.

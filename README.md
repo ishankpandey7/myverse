@@ -13,15 +13,21 @@ npm run dev
 
 Open the localhost link printed in the terminal. `npm run build` checks TypeScript and builds the app; `npm run lint` checks source code.
 
-## First checkpoint
+## Current checkpoint: explore Moonhollow
 
-- Original SVG floating island and responsive React interface.
+- A larger explorable SVG island with a forest, paths, pond, fountain, waterfall and two working destinations.
+- Click/tap the ground to walk. Drag to pan. Focus the map and use WASD/arrow keys to move; Escape stops a route. E/Enter opens a nearby building.
+- Select Home Base or the Idea Observatory to walk to its entrance and open its journal. The destination buttons below the map also work with touch and keyboard.
+- Zoom, follow the character, or fit the whole island into view. Phone visits scroll to the journal, with a Back to island button.
+- Navigation routes around buildings, tree trunks, water and island edges. Artwork and movement geometry live separately under `src/world` so the world can grow.
 - Add missions, complete them once, and receive 25 XP each. Every 100 XP raises your level.
 - Capture ideas and turn them into missions.
 - Saves to the current browser using localStorage. This is not cloud backup: clearing browser data removes this save. Export/import and cloud migration are planned before serious daily use.
 - Keyboard access, reduced-motion support and storage-failure feedback.
 
-This is an initial functional art direction, not the finished game. Avatar movement, decorations, rewards, projects, editing, deletion, accounts and cloud sync are future milestones.
+This is an early playable world, not the finished game. Character appearance customisation, interior rooms, decorations, rewards, projects, editing, deletion, accounts and cloud sync are future milestones. Character position and camera are session-only; missions and ideas keep their existing browser save format. Unsaved drafts survive switching journals within a session, but not a page refresh.
+
+`npm test` verifies reachable entrances, safe routing around water, obstacle clicks, keyboard collision and island boundaries. Build, lint and navigation tests also run in GitHub Actions.
 
 ## Technology and ownership
 

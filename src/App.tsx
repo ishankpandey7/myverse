@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import "./App.css";
+import { IslandWorld } from "./world/IslandWorld";
+import type { Place } from "./world/navigation";
 
 type Entry = { id: string; title: string; done: boolean };
 type Save = { version: 1; missions: Entry[]; ideas: Entry[] };
@@ -27,134 +29,34 @@ function readSave(): Save {
   return initial;
 }
 
-function Island() {
-  return (
-    <svg
-      viewBox="0 0 800 530"
-      className="island"
-      role="img"
-      aria-label="A floating island with a little home, an observatory and a garden beneath the stars"
-    >
-      <defs>
-        <linearGradient id="rock" x2="0" y2="1">
-          <stop stopColor="#526075" />
-          <stop offset="1" stopColor="#20283f" />
-        </linearGradient>
-        <linearGradient id="grass" x2="0" y2="1">
-          <stop stopColor="#9bcab1" />
-          <stop offset="1" stopColor="#528e8f" />
-        </linearGradient>
-        <radialGradient id="halo">
-          <stop stopColor="#b1b5ec" stopOpacity=".25" />
-          <stop offset="1" stopColor="#b1b5ec" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <ellipse cx="405" cy="306" rx="360" ry="195" fill="url(#halo)" />
-      <g className="floating">
-        <path
-          d="M137 303 253 425 404 489 549 435 669 298 415 350Z"
-          fill="url(#rock)"
-        />
-        <path
-          d="m253 330 0 95 151 64-52-148m151-6 46 100 40-118"
-          fill="#677587"
-          opacity=".3"
-        />
-        <path
-          d="M137 291Q138 241 233 218L405 179 562 210Q672 242 669 290L572 358 398 386 224 350Z"
-          fill="#385768"
-        />
-        <path
-          d="M137 279Q138 231 233 208L405 169 562 200Q672 232 669 278L572 343 398 372 224 336Z"
-          fill="url(#grass)"
-        />
-        <path
-          d="m286 253 98 70 154-58"
-          fill="none"
-          stroke="#d3c4a0"
-          strokeWidth="25"
-          strokeLinecap="round"
-        />
-        <path d="m384 323 11 35" stroke="#d3c4a0" strokeWidth="25" />
-        <ellipse
-          cx="414"
-          cy="350"
-          rx="45"
-          ry="12"
-          fill="#456f76"
-          opacity=".4"
-        />
-        <g transform="translate(222 171)">
-          <path d="M0 58 64 27 116 58 52 92Z" fill="#bd906d" />
-          <path d="M0 58V0L52 25V92Z" fill="#dfc4a3" />
-          <path d="M52 25 116 0V58L52 92Z" fill="#ae907b" />
-          <path d="M-13 2 44-53 131-6 53 36Z" fill="#5d668f" />
-          <path d="m-13 2 57-55 4 40-26 29Z" fill="#8992b5" />
-          <path d="m76 53 18-8v29l-18 9Z" fill="#ffe0a3" />
-          <path d="m17 31 17 9v18l-17-8Z" fill="#ffe0a3" />
-          <path d="m76-32 0-32 15 7v33" fill="#c4b5ad" />
-        </g>
-        <g transform="translate(487 142)">
-          <path d="M-32 100V24H55V100Q14 132-32 100" fill="#9b9cc0" />
-          <ellipse cx="12" cy="24" rx="44" ry="20" fill="#bebddb" />
-          <path d="M-32 24C-32-42 56-42 56 24Q13 46-32 24" fill="#6a73a4" />
-          <path
-            d="M12-20Q-3 8 12 41"
-            fill="none"
-            stroke="#a6aed5"
-            strokeWidth="5"
-          />
-          <path d="m29 2 42-34 13 17L41 20Z" fill="#e8ce9d" />
-          <path d="M3 80a10 10 0 0 1 20 0v30H3Z" fill="#ffe0a3" />
-        </g>
-        {[
-          { x: 184, y: 273, s: 1 },
-          { x: 584, y: 294, s: 1.1 },
-          { x: 415, y: 204, s: 0.7 },
-          { x: 225, y: 318, s: 0.6 },
-        ].map(({ x, y, s }) => (
-          <g key={x} transform={`translate(${x} ${y}) scale(${s})`}>
-            <path d="M0 0V-58" stroke="#706b66" strokeWidth="9" />
-            <path d="m-28-22 28-66 28 66Z" fill="#3b7779" />
-            <path d="m-23-43 23-52 23 52Z" fill="#67a298" />
-          </g>
-        ))}
-        <g transform="translate(392 303)">
-          <ellipse cy="24" rx="16" ry="5" fill="#45616c" />
-          <path d="m-11 19 4-24h14l4 24Z" fill="#dfb2ae" />
-          <circle cy="-14" r="11" fill="#edcfb2" />
-          <path d="M-14-16 0-41 14-16Z" fill="#6d649a" />
-          <path
-            d="M-19-16h38"
-            stroke="#8f81bd"
-            strokeWidth="5"
-            strokeLinecap="round"
-          />
-        </g>
-        <g fill="#ffe5a6">
-          <circle cx="330" cy="304" r="3" />
-          <circle cx="469" cy="307" r="3" />
-          <circle cx="542" cy="284" r="3" />
-        </g>
-      </g>
-      <g fill="#bec2df" opacity=".7">
-        <path d="m108 380 21 5-10 31Z" />
-        <path d="m638 388 35 0-25 34Z" />
-        <path d="m501 475 15 8-9 19Z" />
-      </g>
-    </svg>
-  );
-}
-
 function App() {
+  const journalRef = useRef<HTMLElement>(null);
+  const [journalOpen, setJournalOpen] = useState(false);
   const [save, setSave] = useState<Save>(readSave);
   const [tab, setTab] = useState<"missions" | "ideas">("missions");
-  const [draft, setDraft] = useState("");
+  const [drafts, setDrafts] = useState({ missions: "", ideas: "" });
+  const draft = drafts[tab];
+  function setDraft(value: string) {
+    setDrafts((previous) => ({ ...previous, [tab]: value }));
+  }
   const [notice, setNotice] = useState("");
   const [saveError, setSaveError] = useState(false);
   const completed = save.missions.filter((item) => item.done).length;
   const xp = completed * 25;
   const level = Math.floor(xp / 100) + 1;
+
+  function enterPlace(place: Place) {
+    setTab(place === "home" ? "missions" : "ideas");
+    setJournalOpen(true);
+    requestAnimationFrame(() => {
+      journalRef.current?.focus({ preventScroll: true });
+      if (window.matchMedia("(max-width: 760px)").matches)
+        journalRef.current?.scrollIntoView({
+          block: "start",
+          behavior: "instant",
+        });
+    });
+  }
 
   function updateSave(update: (previous: Save) => Save) {
     const next = update(save);
@@ -230,34 +132,8 @@ function App() {
         </div>
       </header>
       <main>
-        <section className="world">
-          <div className="world-heading">
-            <p className="eyebrow">YOUR ADVENTURE STARTS HERE</p>
-            <h1>
-              Small steps.
-              <br />
-              <em>A world of possibilities.</em>
-            </h1>
-            <p>A home for your ideas. A little magic for your everyday.</p>
-          </div>
-          <div className="scene">
-            <div className="moon" />
-            <Island />
-            <span className="map-label home">HOME BASE</span>
-            <span className="map-label observatory">IDEA OBSERVATORY</span>
-            <div className="world-caption">
-              <span className="live-dot" /> YOUR FIRST ISLAND <span>✧</span>{" "}
-              Make yourself at home
-            </div>
-          </div>
-          <div className="world-footer">
-            <span>
-              ✧ &nbsp; Every great adventure begins with one small step.
-            </span>
-            <span>EARLY WORLD · v0.1</span>
-          </div>
-        </section>
-        <aside>
+        <IslandWorld onVisit={enterPlace} />
+        <aside className="journey-side">
           <div className="progress-card">
             <div className="row">
               <span className="eyebrow">YOUR JOURNEY</span>
@@ -289,13 +165,34 @@ function App() {
               </div>
             </div>
           </div>
-          <section className="journal">
+          <section
+            className={`journal ${journalOpen ? "is-open" : ""}`}
+            ref={journalRef}
+            tabIndex={-1}
+            aria-label={
+              tab === "missions"
+                ? "Home Base mission journal"
+                : "Idea Observatory journal"
+            }
+          >
+            {journalOpen && (
+              <button
+                className="mobile-journal-close"
+                onClick={() => {
+                  setJournalOpen(false);
+                  const map = document.getElementById("island-explorer");
+                  map?.scrollIntoView({ block: "start" });
+                  map?.querySelector("svg")?.focus({ preventScroll: true });
+                }}
+              >
+                ↑ Back to island
+              </button>
+            )}
             <div className="tabs" aria-label="Journal sections">
               <button
                 aria-pressed={tab === "missions"}
                 onClick={() => {
                   setTab("missions");
-                  setDraft("");
                 }}
               >
                 ☷ &nbsp; Missions
@@ -304,13 +201,15 @@ function App() {
                 aria-pressed={tab === "ideas"}
                 onClick={() => {
                   setTab("ideas");
-                  setDraft("");
                 }}
               >
                 ✧ &nbsp; Ideas
               </button>
             </div>
             <div className="journal-body">
+              <p className="journal-location">
+                {tab === "missions" ? "⌂ HOME BASE" : "✧ IDEA OBSERVATORY"}
+              </p>
               <div className="row">
                 <h2>
                   {tab === "missions"
