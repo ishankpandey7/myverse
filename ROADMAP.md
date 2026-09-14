@@ -4,6 +4,7 @@
 
 - Beginner-friendly collaboration in normal Hindi/English; no elaborate prompts required.
 - Quality matters more than taking a fixed number of weeks.
+- Attract and retain real users through visual identity, enjoyable gameplay and useful features. Validate actual input and interaction flows alongside automated checks.
 - Game-like, cozy fantasy with space magic; an isometric island, character and meaningful progression.
 - Combine a gamified personal task system with an idea vault.
 - Normal source repository owned by the user, not Codex Sites.
@@ -27,8 +28,11 @@
 - [x] Navigation regression tests and GitHub checks.
 - [x] Keep mission and idea drafts separate while switching journals.
 - [ ] Refine final art direction based on the owner's feedback.
-- [ ] Character appearance customisation and building interiors.
-- First unlockable decoration and placement; reduced-motion and sound controls.
+- [x] Character name, outfit colours, skin tone and hat, with shared world/preview artwork.
+- [x] Lantern, moonflower and crystal rewards at 25/75/150 XP; place, move and return each between four garden spots.
+- [x] Version 2 saves and original-save backup on v1 migration; tests for XP, rewards, placement and save protection.
+- [ ] Building interiors.
+- [ ] Sound controls; reduced-motion support is already present.
 - Mission/idea editing, archiving, search and tags.
 - Versioned save repository, export/import and recovery from invalid saves.
 - Meaningful automated tests for progression, migration and save behavior.
@@ -49,7 +53,7 @@
 
 ## Later, only if useful
 
-AI planning buddy, richer islands, friends challenges and calendar integrations. API-backed features need a separate service setup and cost decision.
+AI planning buddy, richer islands, possible 3D exploration, friends challenges and calendar integrations. Keep game data separate from artwork so later rendering changes can preserve progress. API-backed features need a separate service setup and cost decision.
 
 ## Quality bar
 

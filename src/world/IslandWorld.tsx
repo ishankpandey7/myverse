@@ -5,6 +5,8 @@ import { distance, findPath, moveBy, PLACES, SPAWN } from "./navigation";
 import type { Place, Point } from "./navigation";
 import { bindWheelZoom } from "./camera";
 import type { Camera } from "./camera";
+import { PLOTS, REWARDS } from "../game";
+import type { Avatar, Save, RewardId, PlotId } from "../game";
 import "./world.css";
 
 const directions: Record<string, Point> = {
@@ -22,7 +24,23 @@ const HOME_CAMERA = { x: 700, y: 490 };
 const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, n));
 
-export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
+export function IslandWorld({
+  onVisit,
+  avatar,
+  decorations,
+  placing,
+  paused,
+  onPlace,
+  onCancelPlacement,
+}: {
+  onVisit: (place: Place) => void;
+  avatar: Avatar;
+  decorations: Save["decorations"];
+  placing: RewardId | null;
+  paused: boolean;
+  onPlace: (plot: PlotId) => void;
+  onCancelPlacement: () => void;
+}) {
   const svg = useRef<SVGSVGElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<Point>(SPAWN);
@@ -30,6 +48,7 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
   const route = useRef<Point[]>([]);
   const [routePreview, setRoutePreview] = useState<Point[]>([]);
   const pending = useRef<Place | null>(null);
+  const placementMode = useRef(Boolean(placing || paused));
   const keys = useRef(new Set<string>());
   const visit = useRef(onVisit);
   const [moving, setMoving] = useState(false);
@@ -87,6 +106,14 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
     visit.current = onVisit;
   }, [onVisit]);
   useEffect(() => {
+    placementMode.current = Boolean(placing || paused);
+    if (placing || paused) {
+      route.current = [];
+      pending.current = null;
+      keys.current.clear();
+    }
+  }, [placing, paused]);
+  useEffect(() => {
     const target = frame.current;
     if (!target) return;
     const observer = new ResizeObserver(([entry]) => {
@@ -112,6 +139,12 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
       const dt = last ? Math.min((time - last) / 1000, 0.25) : 0;
       last = time;
       const before = positionRef.current;
+      if (placementMode.current) {
+        setMoving(false);
+        setDestination(null);
+        request = requestAnimationFrame(tick);
+        return;
+      }
       let next = before;
       const movement = { x: 0, y: 0 };
       keys.current.forEach((key) => {
@@ -175,6 +208,7 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
   }, []);
 
   function travel(target: Point, place: Place | null = null) {
+    if (placing) return;
     const path = findPath(positionRef.current, target);
     if (!path.length) {
       setHint("Stay on the island — choose a spot on the grass or a path.");
@@ -200,6 +234,13 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
     setHint("Taking a little pause.");
   }
   function keyDown(event: KeyboardEvent<SVGSVGElement>) {
+    if (placing) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCancelPlacement();
+      }
+      return;
+    }
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     const key = event.key.toLowerCase();
     if (directions[key]) {
@@ -230,7 +271,7 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
   function pointerDown(event: PointerEvent<SVGSVGElement>) {
     if (event.button !== 0) return;
     const target = event.target as Element;
-    if (target.closest("[data-place]")) return;
+    if (target.closest("[data-place], [data-plot-choice]")) return;
     svg.current?.focus({ preventScroll: true });
     drag.current = {
       id: event.pointerId,
@@ -262,7 +303,7 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
     if (!current || current.id !== event.pointerId) return;
     drag.current = null;
     event.currentTarget.releasePointerCapture(event.pointerId);
-    if (current.moved) return;
+    if (current.moved || placing) return;
     const matrix = svg.current?.getScreenCTM();
     if (matrix) {
       const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(
@@ -289,7 +330,10 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
           <i /> FREE TO EXPLORE
         </span>
       </div>
-      <div className="world-frame" ref={frame}>
+      <div
+        className={`world-frame ${placing ? "placement-mode" : ""}`}
+        ref={frame}
+      >
         <div className="map-topline">
           <span>✧ &nbsp; THE FIRST CHAPTER</span>
           <span>Home is a place you grow.</span>
@@ -313,7 +357,7 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
         >
           <Terrain />
           <g className="path-indicator" aria-hidden="true">
-            {destination && (
+            {destination && !placing && (
               <>
                 <path
                   d={`M${position.x} ${position.y} ${routePreview.map((p) => `L${p.x} ${p.y}`).join(" ")}`}
@@ -336,7 +380,12 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
             )}
           </g>
           <g pointerEvents="none">
-            <WorldEntities position={position} moving={moving} />
+            <WorldEntities
+              position={position}
+              moving={moving}
+              avatar={avatar}
+              decorations={decorations}
+            />
           </g>
           {(Object.keys(PLACES) as Place[]).map((place) => {
             const home = place === "home",
@@ -348,7 +397,7 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
                 className={`building-portal ${nearest === place ? "nearby" : ""}`}
                 data-place={place}
                 role="button"
-                tabIndex={0}
+                tabIndex={placing ? -1 : 0}
                 aria-label={`Walk to ${PLACES[place].name}`}
                 onClick={() => travel(PLACES[place].entrance, place)}
                 onKeyDown={(e) => {
@@ -402,7 +451,76 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
               </g>
             );
           })}
+          {placing &&
+            (Object.keys(PLOTS) as PlotId[]).map((plot, index) => {
+              const occupied = Object.entries(decorations).some(
+                ([id, slot]) => id !== placing && slot === plot,
+              );
+              if (occupied) return null;
+              const spot = PLOTS[plot];
+              return (
+                <g
+                  key={plot}
+                  className="plot-marker"
+                  data-plot-choice={plot}
+                  transform={`translate(${spot.x} ${spot.y})`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Place ${REWARDS[placing].name} at ${spot.name}`}
+                  onClick={() => onPlace(plot)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onPlace(plot);
+                    }
+                  }}
+                >
+                  <ellipse
+                    rx="34"
+                    ry="18"
+                    fill="#edd5a533"
+                    stroke="#edcf9a"
+                    strokeWidth="2"
+                    strokeDasharray="5 4"
+                  />
+                  <text textAnchor="middle" y="5" fontSize="17" fill="#fff0cb">
+                    {index + 1}
+                  </text>
+                </g>
+              );
+            })}
         </svg>
+        {placing && (
+          <div className="placement-panel">
+            <div className="placement-title">
+              <h3>Place your {REWARDS[placing].name.toLowerCase()}</h3>
+              <button
+                onClick={onCancelPlacement}
+                aria-label="Cancel decoration placement"
+              >
+                ✕
+              </button>
+            </div>
+            <p>
+              Pick a glowing garden spot, or choose one below. You can move it
+              later.
+            </p>
+            <div className="plot-options">
+              {(Object.keys(PLOTS) as PlotId[]).map((plot, index) => (
+                <button
+                  key={plot}
+                  disabled={Object.entries(decorations).some(
+                    ([id, slot]) => id !== placing && slot === plot,
+                  )}
+                  onClick={() => onPlace(plot)}
+                >
+                  {index + 1}. {PLOTS[plot].name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="camera-tools" aria-label="Camera controls">
           <button
             aria-label="Zoom in"
@@ -454,7 +572,7 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
           </span>
         </div>
         <div className="location-action">
-          {nearest && (
+          {nearest && !placing && (
             <button
               onClick={() => {
                 stop();
@@ -464,7 +582,7 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
               Enter {PLACES[nearest].name} <kbd>E</kbd>
             </button>
           )}
-          {destination && (
+          {destination && !placing && (
             <button className="stop-walking" onClick={stop}>
               Stop walking
             </button>

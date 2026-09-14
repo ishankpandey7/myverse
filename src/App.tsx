@@ -3,36 +3,43 @@ import type { FormEvent } from "react";
 import "./App.css";
 import { IslandWorld } from "./world/IslandWorld";
 import type { Place } from "./world/navigation";
+import { Atelier } from "./Atelier";
+import {
+  freshSave,
+  loadGame,
+  persistGame,
+  completeMission,
+  placeReward,
+  removeReward,
+  unlockedRewards,
+  totalXP,
+  REWARDS,
+  OUTFITS,
+} from "./game";
+import type { Save, RewardId, PlotId } from "./game";
 
-type Entry = { id: string; title: string; done: boolean };
-type Save = { version: 1; missions: Entry[]; ideas: Entry[] };
-const key = "myverse-save-v1";
-const initial: Save = { version: 1, missions: [], ideas: [] };
-
-function readSave(): Save {
+function readCurrentGame() {
   try {
-    const raw = JSON.parse(localStorage.getItem(key) || "null");
-    const valid = (items: unknown): items is Entry[] =>
-      Array.isArray(items) &&
-      items.every(
-        (item) =>
-          item &&
-          typeof item.id === "string" &&
-          typeof item.title === "string" &&
-          typeof item.done === "boolean",
-      );
-    if (raw?.version === 1 && valid(raw.missions) && valid(raw.ideas))
-      return raw;
+    return loadGame(localStorage);
   } catch {
-    /* A missing or unreadable save opens a fresh world. */
+    return {
+      save: freshSave(),
+      error: "Saving is unavailable in this browser. Keep this tab open.",
+    };
   }
-  return initial;
 }
 
 function App() {
   const journalRef = useRef<HTMLElement>(null);
   const [journalOpen, setJournalOpen] = useState(false);
-  const [save, setSave] = useState<Save>(readSave);
+  const [loaded] = useState(readCurrentGame);
+  const [save, setSave] = useState<Save>(loaded.save);
+  const saveRef = useRef(save);
+  const [atelier, setAtelier] = useState<"character" | "collection" | null>(
+    null,
+  );
+  const [placing, setPlacing] = useState<RewardId | null>(null);
+  const [newReward, setNewReward] = useState<RewardId | null>(null);
   const [tab, setTab] = useState<"missions" | "ideas">("missions");
   const [drafts, setDrafts] = useState({ missions: "", ideas: "" });
   const draft = drafts[tab];
@@ -40,9 +47,9 @@ function App() {
     setDrafts((previous) => ({ ...previous, [tab]: value }));
   }
   const [notice, setNotice] = useState("");
-  const [saveError, setSaveError] = useState(false);
+  const [saveError, setSaveError] = useState(loaded.error);
   const completed = save.missions.filter((item) => item.done).length;
-  const xp = completed * 25;
+  const xp = totalXP(save);
   const level = Math.floor(xp / 100) + 1;
 
   function enterPlace(place: Place) {
@@ -59,14 +66,49 @@ function App() {
   }
 
   function updateSave(update: (previous: Save) => Save) {
-    const next = update(save);
-    try {
-      localStorage.setItem(key, JSON.stringify(next));
-      setSaveError(false);
-    } catch {
-      setSaveError(true);
-    }
+    const next = update(saveRef.current);
+    if (next === saveRef.current) return;
+    saveRef.current = next;
     setSave(next);
+    try {
+      setSaveError(persistGame(localStorage, next));
+    } catch {
+      setSaveError(
+        "Saving is unavailable. Keep this tab open to keep your changes.",
+      );
+    }
+  }
+
+  function beginPlacement(id: RewardId) {
+    if (!unlockedRewards(saveRef.current).includes(id)) return;
+    setAtelier(null);
+    setPlacing(id);
+    requestAnimationFrame(() => {
+      const island = document.getElementById("island-explorer");
+      island?.scrollIntoView({ block: "start" });
+      island
+        ?.querySelector<SVGElement>("[data-plot-choice]")
+        ?.focus({ preventScroll: true });
+    });
+  }
+  function focusIsland() {
+    requestAnimationFrame(() =>
+      document
+        .getElementById("island-explorer")
+        ?.querySelector("svg")
+        ?.focus({ preventScroll: true }),
+    );
+  }
+  function finishPlacement(plot: PlotId) {
+    if (!placing) return;
+    const next = placeReward(saveRef.current, placing, plot);
+    if (next === saveRef.current) return;
+    updateSave(() => next);
+    setNotice(
+      REWARDS[placing].name + " placed. A little more you, a little more home.",
+    );
+    setPlacing(null);
+    focusIsland();
   }
 
   function add(event: FormEvent) {
@@ -89,13 +131,23 @@ function App() {
   }
 
   function complete(id: string) {
-    updateSave((previous) => ({
-      ...previous,
-      missions: previous.missions.map((item) =>
-        item.id === id ? { ...item, done: true } : item,
-      ),
-    }));
-    setNotice("Mission complete. +25 XP — your world is growing!");
+    const previous = saveRef.current,
+      next = completeMission(previous, id);
+    if (next === previous) return;
+    const unlocked = unlockedRewards(next).find(
+      (reward) => !unlockedRewards(previous).includes(reward),
+    );
+    updateSave(() => next);
+    setNewReward(unlocked ?? null);
+    const levelUp =
+      Math.floor(totalXP(next) / 100) > Math.floor(totalXP(previous) / 100);
+    setNotice(
+      levelUp
+        ? "Level " +
+            (Math.floor(totalXP(next) / 100) + 1) +
+            " reached! +25 XP — keep growing."
+        : "Mission complete. +25 XP — your world is growing!",
+    );
   }
 
   function makeMission(id: string) {
@@ -124,15 +176,40 @@ function App() {
         <div className="chapter">
           CHAPTER 01 <span>·</span> The beginning
         </div>
-        <div className="profile">
-          <span className="avatar">✦</span>
+        <button
+          className="profile profile-button"
+          onClick={() => {
+            setPlacing(null);
+            setAtelier("character");
+          }}
+          aria-label="Customise your character"
+        >
+          <span
+            className="avatar"
+            style={{ background: OUTFITS[save.avatar.outfit].hat }}
+          >
+            ✦
+          </span>
           <div>
-            World builder<small>Level {level} · Dreamer</small>
+            {save.avatar.name}
+            <small>Level {level} · Dreamer</small>
           </div>
-        </div>
+          <span className="edit-profile">✎</span>
+        </button>
       </header>
       <main>
-        <IslandWorld onVisit={enterPlace} />
+        <IslandWorld
+          onVisit={enterPlace}
+          avatar={save.avatar}
+          decorations={save.decorations}
+          placing={placing}
+          paused={atelier !== null}
+          onPlace={finishPlacement}
+          onCancelPlacement={() => {
+            setPlacing(null);
+            focusIsland();
+          }}
+        />
         <aside className="journey-side">
           <div className="progress-card">
             <div className="row">
@@ -165,6 +242,34 @@ function App() {
               </div>
             </div>
           </div>
+          <button
+            className="collection-shortcut"
+            onClick={() => {
+              setPlacing(null);
+              setNewReward(null);
+              setAtelier("collection");
+            }}
+          >
+            <span>✧ Island collection</span>
+            <small>{unlockedRewards(save).length}/3 unlocked ↗</small>
+          </button>
+          {newReward && (
+            <div className="unlock-banner" role="status">
+              <p className="eyebrow">A LITTLE WONDER, EARNED</p>
+              <h3>{REWARDS[newReward].name} unlocked!</h3>
+              <p>
+                Your real-world progress just made room for something beautiful.
+              </p>
+              <button
+                onClick={() => {
+                  setNewReward(null);
+                  setAtelier("collection");
+                }}
+              >
+                Decorate my island →
+              </button>
+            </div>
+          )}
           <section
             className={`journal ${journalOpen ? "is-open" : ""}`}
             ref={journalRef}
@@ -296,11 +401,25 @@ function App() {
           </p>
           <p className="save-note" role={saveError ? "alert" : undefined}>
             {saveError
-              ? "Saving is unavailable. Keep this tab open to avoid losing changes."
+              ? saveError + " Changes in this tab are not saved yet."
               : "Saved in this browser · Cloud sync comes later"}
           </p>
         </aside>
       </main>
+      {atelier && (
+        <Atelier
+          save={save}
+          initialTab={atelier}
+          onClose={() => setAtelier(null)}
+          onSaveAvatar={(avatar) =>
+            updateSave((previous) => ({ ...previous, avatar }))
+          }
+          onPlace={beginPlacement}
+          onRemove={(id) =>
+            updateSave((previous) => removeReward(previous, id))
+          }
+        />
+      )}
     </div>
   );
 }

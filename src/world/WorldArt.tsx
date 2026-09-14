@@ -1,6 +1,9 @@
 import { memo } from "react";
 import { LAND, TREES } from "./navigation";
 import type { Point } from "./navigation";
+import { PLOTS } from "../game";
+import type { Avatar, Save, RewardId } from "../game";
+import { AvatarArt, DecorationArt } from "./PersonalArt";
 
 export const Terrain = memo(function Terrain() {
   const outline = LAND.map((p) => `${p.x},${p.y}`).join(" ");
@@ -257,9 +260,13 @@ const staticEntities = [
 export function WorldEntities({
   position,
   moving,
+  avatar,
+  decorations,
 }: {
   position: Point;
   moving: boolean;
+  avatar: Avatar;
+  decorations: Save["decorations"];
 }) {
   const character = (
     <g
@@ -270,38 +277,34 @@ export function WorldEntities({
       data-y={Math.round(position.y)}
       aria-hidden="true"
     >
-      <ellipse cy="1" rx="14" ry="6" fill="#273a4e" opacity=".6" />
-      <g className={moving ? "wanderer walking" : "wanderer"}>
-        <path
-          d="m-6-7-1 8m13-8 1 8"
-          stroke="#403e5c"
-          strokeWidth="6"
-          strokeLinecap="round"
-        />
-        <path d="m-11-7 4-24h15l5 24Q0 0-11-7" fill="#c499b2" />
-        <path
-          d="m-7-28-9 14m24-14 8 12"
-          stroke="#e5c5ae"
-          strokeWidth="5"
-          strokeLinecap="round"
-        />
-        <circle cy="-38" r="10" fill="#efd0b0" />
-        <path d="M-13-42 0-68 14-42Z" fill="#8e84b7" />
-        <path d="m0-68 5 14-11 5" fill="#b3a7d4" />
-        <path
-          d="M-19-40q19-8 38 0"
-          fill="none"
-          stroke="#b2a1cc"
-          strokeWidth="6"
-          strokeLinecap="round"
-        />
-        <path d="m-7-27 16 0-4 8" fill="#e8c98f" />
-      </g>
+      <AvatarArt avatar={avatar} moving={moving} />
     </g>
   );
+  const personal = (
+    Object.entries(decorations) as [RewardId, keyof typeof PLOTS][]
+  ).map(([id, plot]) => ({
+    y: PLOTS[plot].y,
+    key: id,
+    node: (
+      <g
+        key={id}
+        className="placed-decoration"
+        data-testid={"decoration-" + id}
+        data-plot={plot}
+        transform={`translate(${PLOTS[plot].x} ${PLOTS[plot].y})`}
+        aria-hidden="true"
+      >
+        <DecorationArt id={id} />
+      </g>
+    ),
+  }));
   return (
     <>
-      {[...staticEntities, { y: position.y, key: "player", node: character }]
+      {[
+        ...staticEntities,
+        ...personal,
+        { y: position.y, key: "player", node: character },
+      ]
         .sort((a, b) => a.y - b.y)
         .map((entity) => entity.node)}
     </>
