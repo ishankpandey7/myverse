@@ -31,7 +31,8 @@
 - [x] Character name, outfit colours, skin tone and hat, with shared world/preview artwork.
 - [x] Lantern, moonflower and crystal rewards at 25/75/150 XP; place, move and return each between four garden spots.
 - [x] Version 2 saves and original-save backup on v1 migration; tests for XP, rewards, placement and save protection.
-- [ ] Building interiors.
+- [x] Home Base cottage: station-based character movement, shared mission board, active/completed views, earned wonder shelf, keyboard exit and responsive layout.
+- [ ] Observatory interior and free movement inside rooms.
 - [ ] Sound controls; reduced-motion support is already present.
 - Mission/idea editing, archiving, search and tags.
 - Versioned save repository, export/import and recovery from invalid saves.

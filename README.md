@@ -28,7 +28,9 @@ Open the localhost link printed in the terminal. `npm run build` checks TypeScri
 - Saves to the current browser using localStorage. This is not cloud backup: clearing browser data removes this save. Export/import and cloud migration are planned before serious daily use.
 - Keyboard access, reduced-motion support and storage-failure feedback.
 
-This is an early playable world, not the finished game. Interior rooms, richer rewards, free placement, projects, editing, deletion, accounts and cloud sync are future milestones. Character position and camera are session-only. Unsaved drafts survive switching journals within a session, but not a page refresh.
+- Enter Home Base from the island to visit a furnished cottage. Choose the mission board or wonder shelf to move your customised character between those stations. Pin and complete missions, switch between active/completed lists, and see earned keepsakes on the shelf. The room shares the island's missions, XP and draft; exit with either door control or Escape. Shelf keepsakes showcase unlocks without moving island decorations. Room movement is station-based, not free walking.
+
+This is an early playable world, not the finished game. The Observatory interior, richer rewards, free placement, projects, editing, deletion, accounts and cloud sync are future milestones. Character position and camera are session-only. Unsaved drafts survive switching journals and leaving Home Base within a session, but not a page refresh.
 
 Save version 2 retains the original storage key and migrates existing missions and ideas. The first write upgrading a v1 save preserves the original in `myverse-save-v1-backup-v1`. Avatar and decorations persist across refreshes. Unreadable or unsupported saves are left intact; a visible error explains that new changes are not saved. Cloud sync and export/import remain future work.
 

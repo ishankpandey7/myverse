@@ -4,6 +4,7 @@ import "./App.css";
 import { IslandWorld } from "./world/IslandWorld";
 import type { Place } from "./world/navigation";
 import { Atelier } from "./Atelier";
+import { HomeRoom } from "./HomeRoom";
 import {
   freshSave,
   loadGame,
@@ -32,6 +33,7 @@ function readCurrentGame() {
 function App() {
   const journalRef = useRef<HTMLElement>(null);
   const [journalOpen, setJournalOpen] = useState(false);
+  const [homeOpen, setHomeOpen] = useState(false);
   const [loaded] = useState(readCurrentGame);
   const [save, setSave] = useState<Save>(loaded.save);
   const saveRef = useRef(save);
@@ -53,7 +55,11 @@ function App() {
   const level = Math.floor(xp / 100) + 1;
 
   function enterPlace(place: Place) {
-    setTab(place === "home" ? "missions" : "ideas");
+    if (place === "home") {
+      setHomeOpen(true);
+      return;
+    }
+    setTab("ideas");
     setJournalOpen(true);
     requestAnimationFrame(() => {
       journalRef.current?.focus({ preventScroll: true });
@@ -130,6 +136,20 @@ function App() {
     );
   }
 
+  function addRoomMission() {
+    const title = drafts.missions.trim();
+    if (!title) return;
+    updateSave((previous) => ({
+      ...previous,
+      missions: [
+        ...previous.missions,
+        { id: crypto.randomUUID(), title, done: false },
+      ],
+    }));
+    setDrafts((previous) => ({ ...previous, missions: "" }));
+    setNotice("Your next adventure is ready.");
+  }
+
   function complete(id: string) {
     const previous = saveRef.current,
       next = completeMission(previous, id);
@@ -203,7 +223,7 @@ function App() {
           avatar={save.avatar}
           decorations={save.decorations}
           placing={placing}
-          paused={atelier !== null}
+          paused={atelier !== null || homeOpen}
           onPlace={finishPlacement}
           onCancelPlacement={() => {
             setPlacing(null);
@@ -406,6 +426,23 @@ function App() {
           </p>
         </aside>
       </main>
+      {homeOpen && (
+        <HomeRoom
+          save={save}
+          draft={drafts.missions}
+          onDraft={(missions) =>
+            setDrafts((previous) => ({ ...previous, missions }))
+          }
+          onAdd={addRoomMission}
+          onComplete={complete}
+          notice={notice}
+          saveError={saveError}
+          onExit={() => {
+            setHomeOpen(false);
+            focusIsland();
+          }}
+        />
+      )}
       {atelier && (
         <Atelier
           save={save}
