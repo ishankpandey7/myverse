@@ -200,6 +200,15 @@ export function completeMission(save: Save, id: string): Save {
     ),
   };
 }
+export function promoteIdea(save: Save, id: string): Save {
+  const idea = save.ideas.find((item) => item.id === id);
+  if (!idea || save.missions.some((item) => item.id === id)) return save;
+  return {
+    ...save,
+    ideas: save.ideas.filter((item) => item.id !== id),
+    missions: [...save.missions, { ...idea, done: false }],
+  };
+}
 export function placeReward(save: Save, id: RewardId, plot: PlotId): Save {
   if (
     !member(id, REWARDS) ||

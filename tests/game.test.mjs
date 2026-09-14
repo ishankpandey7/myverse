@@ -7,6 +7,7 @@ import {
   persistGame,
   SAVE_KEY,
   completeMission,
+  promoteIdea,
   totalXP,
   unlockedRewards,
   placeReward,
@@ -14,6 +15,30 @@ import {
   PLOTS,
 } from "../src/game.ts";
 import { walkable } from "../src/world/navigation.ts";
+test("promoting an idea moves it once without granting XP and survives reload", () => {
+  const save = freshSave();
+  save.ideas = [
+    { id: "spark", title: "Build a moon garden", done: false },
+    { id: "keep", title: "Another thought", done: false },
+  ];
+  const next = promoteIdea(save, "spark");
+  assert.deepEqual(next.missions, [
+    { id: "spark", title: "Build a moon garden", done: false },
+  ]);
+  assert.deepEqual(next.ideas, [save.ideas[1]]);
+  assert.equal(save.ideas.length, 2);
+  assert.equal(totalXP(next), 0);
+  assert.equal(promoteIdea(next, "spark"), next);
+  assert.equal(promoteIdea(next, "missing"), next);
+  assert.deepEqual(decodeSave(JSON.stringify(next)), next);
+  assert.equal(totalXP(completeMission(next, "spark")), 25);
+});
+test("an idea cannot overwrite a mission with the same id", () => {
+  const save = freshSave();
+  save.ideas = [{ id: "shared", title: "Keep this spark", done: false }];
+  save.missions = [{ id: "shared", title: "Existing task", done: true }];
+  assert.equal(promoteIdea(save, "shared"), save);
+});
 const old = {
   version: 1,
   missions: [{ id: "old-done", title: "My existing mission", done: true }],

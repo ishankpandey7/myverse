@@ -30,7 +30,9 @@ Open the localhost link printed in the terminal. `npm run build` checks TypeScri
 
 - Enter Home Base from the island to visit a furnished cottage. Choose the mission board or wonder shelf to move your customised character between those stations. Pin and complete missions, switch between active/completed lists, and see earned keepsakes on the shelf. The room shares the island's missions, XP and draft; exit with either door control or Escape. Shelf keepsakes showcase unlocks without moving island decorations. Room movement is station-based, not free walking.
 
-This is an early playable world, not the finished game. The Observatory interior, richer rewards, free placement, projects, editing, deletion, accounts and cloud sync are future milestones. Character position and camera are session-only. Unsaved drafts survive switching journals and leaving Home Base within a session, but not a page refresh.
+- Enter the Idea Observatory to save ideas at a writing desk and explore their clickable constellation beneath a telescope dome. Search ideas and browse six stars per page. Selecting a star or list entry opens its full text; converting it moves it once to the Home Base mission board without granting XP. Both rooms use the same browser save and preserve drafts until refresh.
+
+This is an early playable world, not the finished game. Richer rewards, free placement, projects, editing, deletion, accounts and cloud sync are future milestones. Character position and camera are session-only. Unsaved drafts survive switching journals and leaving rooms within a session, but not a page refresh.
 
 Save version 2 retains the original storage key and migrates existing missions and ideas. The first write upgrading a v1 save preserves the original in `myverse-save-v1-backup-v1`. Avatar and decorations persist across refreshes. Unreadable or unsupported saves are left intact; a visible error explains that new changes are not saved. Cloud sync and export/import remain future work.
 

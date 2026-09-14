@@ -5,11 +5,13 @@ import { IslandWorld } from "./world/IslandWorld";
 import type { Place } from "./world/navigation";
 import { Atelier } from "./Atelier";
 import { HomeRoom } from "./HomeRoom";
+import { ObservatoryRoom } from "./ObservatoryRoom";
 import {
   freshSave,
   loadGame,
   persistGame,
   completeMission,
+  promoteIdea,
   placeReward,
   removeReward,
   unlockedRewards,
@@ -34,6 +36,7 @@ function App() {
   const journalRef = useRef<HTMLElement>(null);
   const [journalOpen, setJournalOpen] = useState(false);
   const [homeOpen, setHomeOpen] = useState(false);
+  const [observatoryOpen, setObservatoryOpen] = useState(false);
   const [loaded] = useState(readCurrentGame);
   const [save, setSave] = useState<Save>(loaded.save);
   const saveRef = useRef(save);
@@ -59,16 +62,7 @@ function App() {
       setHomeOpen(true);
       return;
     }
-    setTab("ideas");
-    setJournalOpen(true);
-    requestAnimationFrame(() => {
-      journalRef.current?.focus({ preventScroll: true });
-      if (window.matchMedia("(max-width: 760px)").matches)
-        journalRef.current?.scrollIntoView({
-          block: "start",
-          behavior: "instant",
-        });
-    });
+    setObservatoryOpen(true);
   }
 
   function updateSave(update: (previous: Save) => Save) {
@@ -171,15 +165,7 @@ function App() {
   }
 
   function makeMission(id: string) {
-    updateSave((previous) => {
-      const idea = previous.ideas.find((item) => item.id === id);
-      if (!idea) return previous;
-      return {
-        ...previous,
-        ideas: previous.ideas.filter((item) => item.id !== id),
-        missions: [...previous.missions, idea],
-      };
-    });
+    updateSave((previous) => promoteIdea(previous, id));
     setTab("missions");
     setNotice("From a spark to a first step. Your idea is now a mission.");
   }
@@ -223,7 +209,7 @@ function App() {
           avatar={save.avatar}
           decorations={save.decorations}
           placing={placing}
-          paused={atelier !== null || homeOpen}
+          paused={atelier !== null || homeOpen || observatoryOpen}
           onPlace={finishPlacement}
           onCancelPlacement={() => {
             setPlacing(null);
@@ -426,6 +412,31 @@ function App() {
           </p>
         </aside>
       </main>
+      {observatoryOpen && (
+        <ObservatoryRoom
+          save={save}
+          draft={drafts.ideas}
+          onDraft={(ideas) => setDrafts((previous) => ({ ...previous, ideas }))}
+          onAdd={() => {
+            const title = drafts.ideas.trim();
+            if (!title) return;
+            updateSave((previous) => ({
+              ...previous,
+              ideas: [
+                ...previous.ideas,
+                { id: crypto.randomUUID(), title, done: false },
+              ],
+            }));
+            setDrafts((previous) => ({ ...previous, ideas: "" }));
+          }}
+          onConvert={makeMission}
+          saveError={saveError}
+          onExit={() => {
+            setObservatoryOpen(false);
+            focusIsland();
+          }}
+        />
+      )}
       {homeOpen && (
         <HomeRoom
           save={save}
