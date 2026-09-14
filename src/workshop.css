@@ -1,0 +1,153 @@
+.workshop-room {
+  background: #202a32;
+  border-color: #afc0a758;
+}
+.workshop-scene {
+  padding: 30px;
+  align-self: start;
+  background: radial-gradient(ellipse, #69857720, transparent 70%);
+  text-align: center;
+}
+.workshop-scene h3 {
+  font:
+    26px/1.4 "Playfair Display",
+    serif;
+  margin: 14px 0 0;
+  overflow-wrap: anywhere;
+}
+.workshop-scene > svg {
+  width: 100%;
+  display: block;
+}
+.build-stage span {
+  color: #b7c3a4;
+  font-size: 9px;
+  letter-spacing: 3px;
+}
+.build-stage h4 {
+  font:
+    26px "Playfair Display",
+    serif;
+  margin: 9px 0;
+}
+.build-stage p {
+  font-size: 11px;
+  color: #b5bdc1;
+  line-height: 1.8;
+  max-width: 330px;
+  margin: 0 auto;
+}
+.build-stats {
+  display: flex;
+  justify-content: space-around;
+  gap: 16px;
+  margin: 25px 0;
+  padding: 20px 0;
+  border-block: 1px solid #bbc8b420;
+}
+.build-stats b {
+  font:
+    25px "Playfair Display",
+    serif;
+  color: #d9ccb1;
+}
+.build-stats small {
+  display: block;
+  font: 9px sans-serif;
+  margin-top: 10px;
+  color: #afbdb8;
+}
+.workshop-note {
+  font-size: 10px !important;
+  color: #aebeb4;
+  line-height: 1.8;
+}
+.workshop-panel > label {
+  font-size: 10px;
+  color: #c6d0c4;
+}
+.workshop-panel select {
+  width: 100%;
+  padding: 13px;
+  border: 1px solid #b6c8b52b;
+  border-radius: 9px;
+  background: #1a222e;
+  color: #dddccf;
+  font-size: 12px;
+  margin: 10px 0 20px;
+}
+.workshop-panel progress {
+  width: 100%;
+  height: 7px;
+  margin: 14px 0;
+  accent-color: #bac5a2;
+}
+.project-milestones {
+  margin-top: 24px;
+}
+.project-milestone {
+  padding: 17px;
+  border: 1px solid #b8c5b42c;
+  border-radius: 12px;
+  background: #90a89a08;
+  margin: 14px 0;
+}
+.milestone-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.milestone-heading > span {
+  font-size: 10px;
+  color: #b6c4a6;
+}
+.milestone-heading h4 {
+  flex: 1;
+  font:
+    17px/1.5 "Playfair Display",
+    serif;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.milestone-heading small {
+  font-size: 9px;
+  color: #c5d3b7;
+  white-space: nowrap;
+}
+.milestone-task-form {
+  display: flex;
+  gap: 7px;
+}
+.milestone-task-form input {
+  min-width: 0;
+  padding: 10px;
+  font-size: 11px;
+}
+.milestone-task-form button {
+  padding: 10px 13px;
+  border: 1px solid #c1cda73c;
+  border-radius: 8px;
+  color: #d0d6ba;
+  background: #b6c3a015;
+}
+.milestone-task-form button:disabled {
+  opacity: 0.35;
+}
+@media (max-width: 760px) {
+  .workshop-scene {
+    padding: 23px 18px;
+  }
+  .workshop-scene h3 {
+    font-size: 23px;
+  }
+  .build-stats {
+    margin: 18px 0;
+  }
+  .workshop-panel select,
+  .milestone-task-form input {
+    font-size: 16px;
+  }
+  .project-milestone {
+    padding: 13px;
+  }
+}

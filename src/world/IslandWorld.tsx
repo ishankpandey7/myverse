@@ -389,7 +389,7 @@ export function IslandWorld({
           </g>
           {(Object.keys(PLACES) as Place[]).map((place) => {
             const home = place === "home",
-              x = home ? 480 : 975,
+              x = home ? 480 : place === "workshop" ? 720 : 975,
               y = home ? 445 : 430;
             return (
               <g
@@ -445,7 +445,9 @@ export function IslandWorld({
                   >
                     {home
                       ? "MISSIONS & DAILY ADVENTURES"
-                      : "A HOME FOR YOUR IDEAS"}
+                      : place === "workshop"
+                        ? "SMALL STEPS, BIG BUILDS"
+                        : "A HOME FOR YOUR IDEAS"}
                   </text>
                 </g>
               </g>
@@ -592,6 +594,9 @@ export function IslandWorld({
       <div className="explorer-footer">
         <p role="status">{hint}</p>
         <nav aria-label="Island destinations">
+          <button onClick={() => travel(PLACES.workshop.entrance, "workshop")}>
+            ⚒ Workshop
+          </button>
           <button onClick={() => travel(PLACES.home.entrance, "home")}>
             ⌂ &nbsp; Home Base
           </button>

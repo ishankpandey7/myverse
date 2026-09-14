@@ -6,6 +6,7 @@ import type { Place } from "./world/navigation";
 import { Atelier } from "./Atelier";
 import { HomeRoom } from "./HomeRoom";
 import { ObservatoryRoom } from "./ObservatoryRoom";
+import { Workshop } from "./Workshop";
 import {
   freshSave,
   loadGame,
@@ -36,6 +37,7 @@ function App() {
   const journalRef = useRef<HTMLElement>(null);
   const [journalOpen, setJournalOpen] = useState(false);
   const [homeOpen, setHomeOpen] = useState(false);
+  const [workshopOpen, setWorkshopOpen] = useState(false);
   const [observatoryOpen, setObservatoryOpen] = useState(false);
   const [loaded] = useState(readCurrentGame);
   const [save, setSave] = useState<Save>(loaded.save);
@@ -58,6 +60,10 @@ function App() {
   const level = Math.floor(xp / 100) + 1;
 
   function enterPlace(place: Place) {
+    if (place === "workshop") {
+      setWorkshopOpen(true);
+      return;
+    }
     if (place === "home") {
       setHomeOpen(true);
       return;
@@ -209,7 +215,9 @@ function App() {
           avatar={save.avatar}
           decorations={save.decorations}
           placing={placing}
-          paused={atelier !== null || homeOpen || observatoryOpen}
+          paused={
+            atelier !== null || homeOpen || observatoryOpen || workshopOpen
+          }
           onPlace={finishPlacement}
           onCancelPlacement={() => {
             setPlacing(null);
@@ -412,6 +420,18 @@ function App() {
           </p>
         </aside>
       </main>
+      {workshopOpen && (
+        <Workshop
+          save={save}
+          onUpdate={updateSave}
+          onComplete={complete}
+          saveError={saveError}
+          onExit={() => {
+            setWorkshopOpen(false);
+            focusIsland();
+          }}
+        />
+      )}
       {observatoryOpen && (
         <ObservatoryRoom
           save={save}

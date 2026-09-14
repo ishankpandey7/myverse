@@ -64,7 +64,7 @@ function withXP(count) {
 
 test("old saves migrate without losing missions, ideas or earned XP", () => {
   const save = decodeSave(JSON.stringify(old));
-  assert.equal(save.version, 2);
+  assert.equal(save.version, 3);
   assert.deepEqual(save.missions, old.missions);
   assert.deepEqual(save.ideas, old.ideas);
   assert.equal(totalXP(save), 25);
@@ -76,7 +76,7 @@ test("first migrated write preserves an untouched backup of the original save", 
     save = loadGame(store).save;
   assert.equal(persistGame(store, save), "");
   assert.equal(store.getItem(`${SAVE_KEY}-backup-v1`), original);
-  assert.equal(loadGame(store).save.version, 2);
+  assert.equal(loadGame(store).save.version, 3);
   assert.equal(
     persistGame(store, { ...save, avatar: { ...save.avatar, name: "Ishank" } }),
     "",

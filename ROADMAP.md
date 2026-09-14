@@ -41,7 +41,8 @@
 
 ## Checkpoint 3: ideas become projects
 
-- Project Workshop with milestones, project tasks and progress.
+- [x] Project Workshop building, multiple projects, milestones, shared mission tasks, four-stage progress model and v3 save migration with backups.
+- [ ] Project editing, archiving and idea-to-project conversion.
 - Habit recurrence with timezone-aware dates and optional streaks.
 - Focus timer and weekly reflection.
 - Skill Garden and achievement gallery.

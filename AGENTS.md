@@ -8,4 +8,4 @@
 - Verify relevant behavior, build and lint before committing a meaningful working milestone. Push milestones to the configured GitHub remote as requested by the owner; do not force-push.
 - Keep credentials and local environment files out of Git. Vercel and Supabase are planned but are not configured yet.
 - Data currently saves only in the browser. Preserve the save format or implement a migration when changing it.
-- Saves now use version 2 under the existing myverse-save-v1 key. Preserve missions, ideas, avatar and decoration placements; the first v1 upgrade keeps an original backup. Never overwrite unreadable or newer saves.
+- Saves now use version 3 under the existing myverse-save-v1 key. Preserve missions, ideas, avatar, decoration placements and projects. First writes upgrading v1/v2 keep original backups. Project taskIds reference shared missions; never award a separate copy of XP for Workshop completion. Never overwrite unreadable or newer saves.

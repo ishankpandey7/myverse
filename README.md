@@ -32,9 +32,11 @@ Open the localhost link printed in the terminal. `npm run build` checks TypeScri
 
 - Enter the Idea Observatory to save ideas at a writing desk and explore their clickable constellation beneath a telescope dome. Search ideas and browse six stars per page. Selecting a star or list entry opens its full text; converting it moves it once to the Home Base mission board without granting XP. Both rooms use the same browser save and preserve drafts until refresh.
 
-This is an early playable world, not the finished game. Richer rewards, free placement, projects, editing, deletion, accounts and cloud sync are future milestones. Character position and camera are session-only. Unsaved drafts survive switching journals and leaving rooms within a session, but not a page refresh.
+- Walk to Project Workshop to create projects, milestones and tasks. Project tasks are shared Home Base missions and award 25 XP once, whichever room completes them. The selected project's model grows through blueprint, foundations, building and finished stages. Empty milestones remain unfinished. Switch projects with the workbench selector. Created projects persist; unfinished Workshop form drafts last only while that room/project view stays open.
 
-Save version 2 retains the original storage key and migrates existing missions and ideas. The first write upgrading a v1 save preserves the original in `myverse-save-v1-backup-v1`. Avatar and decorations persist across refreshes. Unreadable or unsupported saves are left intact; a visible error explains that new changes are not saved. Cloud sync and export/import remain future work.
+This is an early playable world, not the finished game. Richer rewards, free placement, editing, deletion, accounts and cloud sync are future milestones. Character position and camera are session-only. Mission/idea drafts survive switching journals and leaving their rooms within a session, but not a page refresh.
+
+Save version 3 retains the original storage key and migrates v1/v2 saves without losing existing progress. First upgrade writes preserve originals in `myverse-save-v1-backup-v1` or `myverse-save-v1-backup-v2`. Avatar, decorations, projects and shared tasks persist across refreshes. Unreadable or unsupported saves are left intact; a visible error explains that new changes are not saved. Cloud sync and export/import remain future work.
 
 `npm test` verifies navigation and camera input, idempotent mission completion, reward thresholds, placement rules, save migration, persistence and protection of invalid saves. Build, lint and these tests also run in GitHub Actions. Browser checks cover the actual customisation, unlock, placement and camera flows.
 

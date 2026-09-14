@@ -61,8 +61,14 @@ export const PLOTS = {
   meadow: { name: "Quiet meadow", x: 600, y: 640 },
 } as const;
 export type PlotId = keyof typeof PLOTS;
+export type Project = {
+  id: string;
+  title: string;
+  milestones: { id: string; title: string; taskIds: string[] }[];
+};
 export type Save = {
-  version: 2;
+  version: 3;
+  projects: Project[];
   missions: Entry[];
   ideas: Entry[];
   avatar: Avatar;
@@ -77,7 +83,8 @@ export const defaultAvatar: Avatar = {
 };
 export function freshSave(): Save {
   return {
-    version: 2,
+    version: 3,
+    projects: [],
     missions: [],
     ideas: [],
     avatar: { ...defaultAvatar },
@@ -129,7 +136,7 @@ export function decodeSave(raw: string): Save {
     );
   if (value.version === 1)
     return { ...freshSave(), missions: value.missions, ideas: value.ideas };
-  if (value.version !== 2)
+  if (value.version !== 2 && value.version !== 3)
     throw new Error(
       "This save uses an unsupported version. Its original data has been kept.",
     );
@@ -149,8 +156,14 @@ export function decodeSave(raw: string): Save {
     throw new Error(
       "The saved decorations could not be read. Their original data has been kept.",
     );
+  const projects = value.version === 2 ? [] : value.projects;
+  if (!validProjects(projects, value.missions))
+    throw new Error(
+      "The saved projects could not be read. Their original data has been kept.",
+    );
   return {
-    version: 2,
+    version: 3,
+    projects,
     missions: value.missions,
     ideas: value.ideas,
     avatar: value.avatar,
@@ -177,11 +190,12 @@ export function persistGame(storage: StorageLike, save: Save): string {
     const raw = storage.getItem(SAVE_KEY);
     if (raw !== null) {
       decodeSave(raw); // Never replace an unreadable or newer save with a fresh world.
+      const version = JSON.parse(raw).version;
       if (
-        JSON.parse(raw).version === 1 &&
-        storage.getItem(`${SAVE_KEY}-backup-v1`) === null
+        version < 3 &&
+        storage.getItem(`${SAVE_KEY}-backup-v${version}`) === null
       )
-        storage.setItem(`${SAVE_KEY}-backup-v1`, raw);
+        storage.setItem(`${SAVE_KEY}-backup-v${version}`, raw);
     }
     storage.setItem(SAVE_KEY, JSON.stringify(save));
     return "";
@@ -228,4 +242,144 @@ export function removeReward(save: Save, id: RewardId): Save {
   const decorations = { ...save.decorations };
   delete decorations[id];
   return { ...save, decorations };
+}
+function validProjects(value: unknown, missions: Entry[]): value is Project[] {
+  if (!Array.isArray(value)) return false;
+  const ids = new Set<string>(),
+    tasks = new Set<string>();
+  const title = (s: unknown) =>
+    typeof s === "string" && !!s.trim() && s.length <= 160;
+  const unique = (id: unknown) => {
+    if (typeof id !== "string" || !id || ids.has(id)) return false;
+    ids.add(id);
+    return true;
+  };
+  return value.every(
+    (p) =>
+      record(p) &&
+      unique(p.id) &&
+      title(p.title) &&
+      Array.isArray(p.milestones) &&
+      p.milestones.every((m) => {
+        if (
+          !record(m) ||
+          !unique(m.id) ||
+          !title(m.title) ||
+          !Array.isArray(m.taskIds)
+        )
+          return false;
+        return m.taskIds.every((id) => {
+          if (
+            typeof id !== "string" ||
+            tasks.has(id) ||
+            !missions.some((task) => task.id === id)
+          )
+            return false;
+          tasks.add(id);
+          return true;
+        });
+      }),
+  );
+}
+export function createProject(save: Save, id: string, title: string): Save {
+  if (
+    !id ||
+    !title.trim() ||
+    title.trim().length > 160 ||
+    save.projects.some(
+      (p) => p.id === id || p.milestones.some((m) => m.id === id),
+    )
+  )
+    return save;
+  return {
+    ...save,
+    projects: [...save.projects, { id, title: title.trim(), milestones: [] }],
+  };
+}
+export function addMilestone(
+  save: Save,
+  projectId: string,
+  id: string,
+  title: string,
+): Save {
+  if (
+    !id ||
+    !title.trim() ||
+    title.trim().length > 160 ||
+    !save.projects.some((p) => p.id === projectId) ||
+    save.projects.some(
+      (p) => p.id === id || p.milestones.some((m) => m.id === id),
+    )
+  )
+    return save;
+  return {
+    ...save,
+    projects: save.projects.map((p) =>
+      p.id === projectId
+        ? {
+            ...p,
+            milestones: [
+              ...p.milestones,
+              { id, title: title.trim(), taskIds: [] },
+            ],
+          }
+        : p,
+    ),
+  };
+}
+export function addProjectTask(
+  save: Save,
+  projectId: string,
+  milestoneId: string,
+  id: string,
+  title: string,
+): Save {
+  if (
+    !id ||
+    !title.trim() ||
+    title.trim().length > 160 ||
+    save.missions.some((m) => m.id === id) ||
+    !save.projects.some(
+      (p) =>
+        p.id === projectId && p.milestones.some((m) => m.id === milestoneId),
+    )
+  )
+    return save;
+  return {
+    ...save,
+    missions: [...save.missions, { id, title: title.trim(), done: false }],
+    projects: save.projects.map((p) =>
+      p.id === projectId
+        ? {
+            ...p,
+            milestones: p.milestones.map((m) =>
+              m.id === milestoneId ? { ...m, taskIds: [...m.taskIds, id] } : m,
+            ),
+          }
+        : p,
+    ),
+  };
+}
+export function projectProgress(save: Save, project: Project) {
+  const ids = project.milestones.flatMap((m) => m.taskIds);
+  const done = ids.filter((id) =>
+    save.missions.some((task) => task.id === id && task.done),
+  ).length;
+  const milestones = project.milestones.filter(
+    (m) =>
+      m.taskIds.length > 0 &&
+      m.taskIds.every((id) =>
+        save.missions.some((task) => task.id === id && task.done),
+      ),
+  ).length;
+  const complete =
+    project.milestones.length > 0 && milestones === project.milestones.length;
+  return {
+    total: ids.length,
+    done,
+    milestones,
+    complete,
+    percent: ids.length ? Math.round((done / ids.length) * 100) : 0,
+    stage: complete ? 3 : done > 0 ? 2 : ids.length > 0 ? 1 : 0,
+  };
 }

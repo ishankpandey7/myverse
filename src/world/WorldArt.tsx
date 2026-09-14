@@ -227,6 +227,28 @@ export function Observatory() {
   );
 }
 const staticEntities = [
+  {
+    y: 450,
+    key: "workshop",
+    node: (
+      <g key="workshop" transform="translate(720 425)">
+        <ellipse cy="10" rx="80" ry="27" fill="#243943" opacity=".5" />
+        <path d="M-58-83 0-108 62-79V8L0 33-58 8Z" fill="#9d9995" />
+        <path d="M0-108 62-79V8L0 33Z" fill="#777e86" />
+        <path
+          d="m-72-84 70-81 77 77-75-24Z"
+          fill="#668b86"
+          stroke="#a7b5a0"
+          strokeWidth="5"
+        />
+        <path d="M-20 22v-52h36v56" fill="#d2b887" />
+        <path d="m30-51 19-8v28l-19 7Z" fill="#efd6a0" />
+        <path d="m-48-42 18 5v24l-18-5Z" fill="#edd2a3" />
+        <path d="M-8-108v-18m-14 5 28-12" stroke="#d9c49e" strokeWidth="8" />
+        <path d="m-22 29 40-2 19 12-61 3Z" fill="#aca797" />
+      </g>
+    ),
+  },
   ...TREES.map(([x, y, s], i) => ({
     y,
     key: `tree-${i}`,
