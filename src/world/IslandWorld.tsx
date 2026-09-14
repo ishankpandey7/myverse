@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import { Terrain, WorldEntities } from "./WorldArt";
 import { distance, findPath, moveBy, PLACES, SPAWN } from "./navigation";
 import type { Place, Point } from "./navigation";
+import { bindWheelZoom } from "./camera";
+import type { Camera } from "./camera";
 import "./world.css";
 
 const directions: Record<string, Point> = {
@@ -40,6 +42,12 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
     "Welcome to Moonhollow. Pick a path and make it yours.",
   );
   const drag = useRef<Drag | null>(null);
+  const liveCamera = useRef<Camera>({
+    zoom: 1,
+    center: HOME_CAMERA,
+    baseWidth: 1400,
+    aspect: 1.5,
+  });
   const baseWidth = aspect < 1 ? 950 : 1400;
   const width = baseWidth / zoom;
   const height = width / aspect;
@@ -47,6 +55,33 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
   const nearest = (Object.keys(PLACES) as Place[]).find(
     (place) => distance(position, PLACES[place].entrance) < 85,
   );
+
+  useLayoutEffect(() => {
+    liveCamera.current = {
+      zoom,
+      center: { x: camera.x, y: camera.y },
+      baseWidth,
+      aspect,
+    };
+  }, [zoom, camera.x, camera.y, baseWidth, aspect]);
+  useEffect(() => {
+    const target = frame.current,
+      map = svg.current;
+    if (!target || !map) return;
+    return bindWheelZoom(
+      target,
+      () => liveCamera.current,
+      () => map.getBoundingClientRect(),
+      (next) => {
+        // Accumulate high-frequency wheel events before React's next render.
+        liveCamera.current = next;
+        drag.current = null;
+        setFollowing(false);
+        setZoom(next.zoom);
+        setCenter(next.center);
+      },
+    );
+  }, []);
 
   useEffect(() => {
     visit.current = onVisit;
@@ -265,7 +300,7 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
           viewBox={`${camera.x - width / 2} ${camera.y - height / 2} ${width} ${height}`}
           tabIndex={0}
           role="group"
-          aria-label="Island exploration. Click to walk, drag to pan, or use WASD and arrow keys. Press E near a building to enter."
+          aria-label="Island exploration. Click to walk, drag to pan, pinch or scroll to zoom, or use WASD and arrow keys. Press E near a building to enter."
           onKeyDown={keyDown}
           onKeyUp={(e) => keys.current.delete(e.key.toLowerCase())}
           onBlur={() => keys.current.clear()}
@@ -413,7 +448,7 @@ export function IslandWorld({ onVisit }: { onVisit: (place: Place) => void }) {
             N<br />✧
           </span>
           <span>
-            Click to walk · Drag to explore
+            Click to walk · Drag to explore · Pinch/scroll to zoom
             <br />
             <kbd>W A S D</kbd> or arrow keys
           </span>

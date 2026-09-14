@@ -18,7 +18,8 @@ Open the localhost link printed in the terminal. `npm run build` checks TypeScri
 - A larger explorable SVG island with a forest, paths, pond, fountain, waterfall and two working destinations.
 - Click/tap the ground to walk. Drag to pan. Focus the map and use WASD/arrow keys to move; Escape stops a route. E/Enter opens a nearby building.
 - Select Home Base or the Idea Observatory to walk to its entrance and open its journal. The destination buttons below the map also work with touch and keyboard.
-- Zoom, follow the character, or fit the whole island into view. Phone visits scroll to the journal, with a Back to island button.
+- Pinch or use two-finger scrolling / the mouse wheel over the map to zoom around the cursor (50–200%). The +/− buttons also work. Gestures release camera follow so the cursor stays anchored; scrolling outside the map still scrolls the page.
+- Follow the character or fit the whole island into view. Phone visits scroll to the journal, with a Back to island button.
 - Navigation routes around buildings, tree trunks, water and island edges. Artwork and movement geometry live separately under `src/world` so the world can grow.
 - Add missions, complete them once, and receive 25 XP each. Every 100 XP raises your level.
 - Capture ideas and turn them into missions.
@@ -27,7 +28,7 @@ Open the localhost link printed in the terminal. `npm run build` checks TypeScri
 
 This is an early playable world, not the finished game. Character appearance customisation, interior rooms, decorations, rewards, projects, editing, deletion, accounts and cloud sync are future milestones. Character position and camera are session-only; missions and ideas keep their existing browser save format. Unsaved drafts survive switching journals within a session, but not a page refresh.
 
-`npm test` verifies reachable entrances, safe routing around water, obstacle clicks, keyboard collision and island boundaries. Build, lint and navigation tests also run in GitHub Actions.
+`npm test` verifies reachable entrances, safe routing around water, obstacle clicks, keyboard collision, island boundaries, pinch/wheel handling, cursor anchoring and zoom limits. Build, lint and these tests also run in GitHub Actions.
 
 ## Technology and ownership
 

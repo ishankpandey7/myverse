@@ -23,6 +23,7 @@
 - [x] Click/tap walking, WASD/arrow movement and obstacle-aware routes.
 - [x] Home Base and Observatory visits open the existing journals on arrival.
 - [x] Camera zoom, drag, follow and whole-island view; mobile navigation.
+- [x] Cursor-anchored touchpad pinch/scroll and mouse-wheel zoom, with camera regression tests.
 - [x] Navigation regression tests and GitHub checks.
 - [x] Keep mission and idea drafts separate while switching journals.
 - [ ] Refine final art direction based on the owner's feedback.
