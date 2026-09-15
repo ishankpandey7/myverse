@@ -3,12 +3,14 @@ import { REWARDS, totalXP, unlockedRewards } from "./game";
 import type { Save, RewardId } from "./game";
 import { AvatarArt, DecorationArt } from "./world/PersonalArt";
 import "./home-room.css";
+import { EditableTitle } from "./EditableTitle";
 
 type Station = "welcome" | "board" | "shelf";
 const positions = { welcome: [420, 460], board: [265, 370], shelf: [570, 390] };
 
 export function HomeRoom({
   save,
+  onRename,
   draft,
   onDraft,
   onAdd,
@@ -18,6 +20,7 @@ export function HomeRoom({
   saveError,
 }: {
   save: Save;
+  onRename: (id: string, title: string) => void;
   draft: string;
   onDraft: (value: string) => void;
   onAdd: () => void;
@@ -345,7 +348,10 @@ export function HomeRoom({
               <ul className="room-missions">
                 {missions.map((mission) => (
                   <li key={mission.id}>
-                    <span>{mission.title}</span>
+                    <EditableTitle
+                      title={mission.title}
+                      onSave={(title) => onRename(mission.id, title)}
+                    />
                     <button
                       disabled={mission.done}
                       onClick={() => {

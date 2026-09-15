@@ -7,6 +7,10 @@ import { Atelier } from "./Atelier";
 import { HomeRoom } from "./HomeRoom";
 import { ObservatoryRoom } from "./ObservatoryRoom";
 import { Workshop } from "./Workshop";
+import { EditableTitle } from "./EditableTitle";
+import { WorldTools } from "./WorldTools";
+import { renameItem, restoreGame, needsGuide } from "./polish";
+import type { EditableKind } from "./polish";
 import {
   freshSave,
   loadGame,
@@ -36,7 +40,11 @@ function readCurrentGame() {
 function App() {
   const journalRef = useRef<HTMLElement>(null);
   const [journalOpen, setJournalOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState<"guide" | "backup" | null>(() =>
+    needsGuide() ? "guide" : null,
+  );
   const [homeOpen, setHomeOpen] = useState(false);
+  const [restoreEpoch, setRestoreEpoch] = useState(0);
   const [workshopOpen, setWorkshopOpen] = useState(false);
   const [observatoryOpen, setObservatoryOpen] = useState(false);
   const [loaded] = useState(readCurrentGame);
@@ -69,6 +77,9 @@ function App() {
       return;
     }
     setObservatoryOpen(true);
+  }
+  function rename(kind: EditableKind, id: string, title: string) {
+    updateSave((previous) => renameItem(previous, kind, id, title));
   }
 
   function updateSave(update: (previous: Save) => Save) {
@@ -209,14 +220,36 @@ function App() {
           <span className="edit-profile">✎</span>
         </button>
       </header>
-      <main>
+      <nav className="world-tool-bar" aria-label="World help and backups">
+        <button
+          onClick={() => {
+            setPlacing(null);
+            setToolsOpen("guide");
+          }}
+        >
+          ✧ Island guide
+        </button>
+        <button
+          onClick={() => {
+            setPlacing(null);
+            setToolsOpen("backup");
+          }}
+        >
+          ↓ Backup & restore
+        </button>
+      </nav>
+      <main key={restoreEpoch}>
         <IslandWorld
           onVisit={enterPlace}
           avatar={save.avatar}
           decorations={save.decorations}
           placing={placing}
           paused={
-            atelier !== null || homeOpen || observatoryOpen || workshopOpen
+            atelier !== null ||
+            homeOpen ||
+            observatoryOpen ||
+            workshopOpen ||
+            toolsOpen !== null
           }
           onPlace={finishPlacement}
           onCancelPlacement={() => {
@@ -369,7 +402,10 @@ function App() {
               <ul className="entries">
                 {save[tab].map((item) => (
                   <li key={item.id} className={item.done ? "done" : ""}>
-                    <span>{item.title}</span>
+                    <EditableTitle
+                      title={item.title}
+                      onSave={(title) => rename(tab, item.id, title)}
+                    />
                     {tab === "missions" ? (
                       <button
                         disabled={item.done}
@@ -420,8 +456,37 @@ function App() {
           </p>
         </aside>
       </main>
+      {toolsOpen && (
+        <WorldTools
+          mode={toolsOpen}
+          save={save}
+          onClose={() => {
+            setToolsOpen(null);
+            focusIsland();
+          }}
+          onRestore={(incoming) => {
+            let error: string;
+            try {
+              error = restoreGame(localStorage, incoming, saveRef.current);
+            } catch {
+              return "Browser storage is unavailable. Your world has not changed.";
+            }
+            if (error) return error;
+            saveRef.current = incoming;
+            setRestoreEpoch((epoch) => epoch + 1);
+            setSave(incoming);
+            setSaveError("");
+            setDrafts({ missions: "", ideas: "" });
+            setNotice("");
+            setNewReward(null);
+            setPlacing(null);
+            return "";
+          }}
+        />
+      )}
       {workshopOpen && (
         <Workshop
+          onRename={rename}
           save={save}
           onUpdate={updateSave}
           onComplete={complete}
@@ -434,6 +499,7 @@ function App() {
       )}
       {observatoryOpen && (
         <ObservatoryRoom
+          onRename={(id, title) => rename("ideas", id, title)}
           save={save}
           draft={drafts.ideas}
           onDraft={(ideas) => setDrafts((previous) => ({ ...previous, ideas }))}
@@ -459,6 +525,7 @@ function App() {
       )}
       {homeOpen && (
         <HomeRoom
+          onRename={(id, title) => rename("missions", id, title)}
           save={save}
           draft={drafts.missions}
           onDraft={(missions) =>

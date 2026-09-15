@@ -9,3 +9,4 @@
 - Keep credentials and local environment files out of Git. Vercel and Supabase are planned but are not configured yet.
 - Data currently saves only in the browser. Preserve the save format or implement a migration when changing it.
 - Saves now use version 3 under the existing myverse-save-v1 key. Preserve missions, ideas, avatar, decoration placements and projects. First writes upgrading v1/v2 keep original backups. Project taskIds reference shared missions; never award a separate copy of XP for Workshop completion. Never overwrite unreadable or newer saves.
+- Explicit user-confirmed backup restore may replace a world after preserving raw original and current session recovery copies. Keep ordinary autosave protected. Editing titles must preserve IDs and XP. Browser-local recovery is not cloud backup.

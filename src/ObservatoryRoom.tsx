@@ -3,6 +3,7 @@ import type { Save } from "./game";
 import { AvatarArt } from "./world/PersonalArt";
 import "./home-room.css";
 import "./observatory.css";
+import { EditableTitle } from "./EditableTitle";
 
 const stars = [
   [25, 32],
@@ -14,6 +15,7 @@ const stars = [
 ];
 export function ObservatoryRoom({
   save,
+  onRename,
   draft,
   onDraft,
   onAdd,
@@ -22,6 +24,7 @@ export function ObservatoryRoom({
   saveError,
 }: {
   save: Save;
+  onRename: (id: string, title: string) => void;
   draft: string;
   onDraft: (value: string) => void;
   onAdd: () => void;
@@ -336,7 +339,12 @@ export function ObservatoryRoom({
           {idea && (
             <article className="selected-idea" aria-label="Selected idea">
               <p className="eyebrow">A SPARK, READY TO GROW</p>
-              <h4>{idea.title}</h4>
+              <h4>
+                <EditableTitle
+                  title={idea.title}
+                  onSave={(title) => onRename(idea.id, title)}
+                />
+              </h4>
               <p>
                 This moves your idea to the mission board in Home Base. Complete
                 it there to earn XP.

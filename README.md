@@ -25,7 +25,7 @@ Open the localhost link printed in the terminal. `npm run build` checks TypeScri
 - Open the profile button to customise your character's name, outfit, skin tone and hat. The preview and island use the same character artwork.
 - Earn a Wish lantern at 25 XP, Moonflowers at 75 XP and a Stargazer crystal at 150 XP. Island collection lets you place one copy of each in four prepared garden spots, move it, or return it to your collection. Placement does not spend XP. These are ornamental, non-blocking decorations.
 - Capture ideas and turn them into missions.
-- Saves to the current browser using localStorage. This is not cloud backup: clearing browser data removes this save. Export/import and cloud migration are planned before serious daily use.
+- Saves to the current browser using localStorage. Clearing browser data removes this save and local recovery copies; download backups regularly. Cloud sync is future work.
 - Keyboard access, reduced-motion support and storage-failure feedback.
 
 - Enter Home Base from the island to visit a furnished cottage. Choose the mission board or wonder shelf to move your customised character between those stations. Pin and complete missions, switch between active/completed lists, and see earned keepsakes on the shelf. The room shares the island's missions, XP and draft; exit with either door control or Escape. Shelf keepsakes showcase unlocks without moving island decorations. Room movement is station-based, not free walking.
@@ -34,9 +34,13 @@ Open the localhost link printed in the terminal. `npm run build` checks TypeScri
 
 - Walk to Project Workshop to create projects, milestones and tasks. Project tasks are shared Home Base missions and award 25 XP once, whichever room completes them. The selected project's model grows through blueprint, foundations, building and finished stages. Empty milestones remain unfinished. Switch projects with the workbench selector. Created projects persist; unfinished Workshop form drafts last only while that room/project view stays open.
 
-This is an early playable world, not the finished game. Richer rewards, free placement, editing, deletion, accounts and cloud sync are future milestones. Character position and camera are session-only. Mission/idea drafts survive switching journals and leaving their rooms within a session, but not a page refresh.
+- Rename missions, ideas, projects and milestones with their pencil controls. Save or cancel the edit (Enter/Escape work too). IDs, completed state, XP and shared project task references remain unchanged.
+- The three-card Island guide introduces movement, missions, ideas, projects and local saves. Dismissing it is remembered in this browser; reopen it from the toolbar.
+- Backup & restore downloads a versioned JSON world. Import a file (up to 10 MB) or paste backup text, review its counts, then explicitly replace the current world. Before replacement, the app saves a recovery copy of current session progress and preserves the raw original. The previous world can be previewed and restored from the same panel. This is one-level local recovery, not cloud history. Invalid backups and failed writes leave the current world in place.
 
-Save version 3 retains the original storage key and migrates v1/v2 saves without losing existing progress. First upgrade writes preserve originals in `myverse-save-v1-backup-v1` or `myverse-save-v1-backup-v2`. Avatar, decorations, projects and shared tasks persist across refreshes. Unreadable or unsupported saves are left intact; a visible error explains that new changes are not saved. Cloud sync and export/import remain future work.
+This is an early playable world, not the finished game. Richer rewards, free placement, archiving, deletion, accounts and cloud sync are future milestones. Character position and camera are session-only. Mission/idea drafts survive switching journals and leaving their rooms within a session, but not a page refresh or a backup restore.
+
+Save version 3 retains the original storage key and migrates v1/v2 saves without losing existing progress. First upgrade writes preserve originals in `myverse-save-v1-backup-v1` or `myverse-save-v1-backup-v2`. Avatar, decorations, projects and shared tasks persist across refreshes. Unreadable or unsupported saves are left intact; a visible error explains that new changes are not saved. Explicit backup restore can recover from an unreadable save after preserving its raw original.
 
 `npm test` verifies navigation and camera input, idempotent mission completion, reward thresholds, placement rules, save migration, persistence and protection of invalid saves. Build, lint and these tests also run in GitHub Actions. Browser checks cover the actual customisation, unlock, placement and camera flows.
 

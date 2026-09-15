@@ -9,6 +9,8 @@ import type { Save } from "./game";
 import { AvatarArt } from "./world/PersonalArt";
 import "./home-room.css";
 import "./workshop.css";
+import { EditableTitle } from "./EditableTitle";
+import type { EditableKind } from "./polish";
 
 const stages = [
   "The blueprint",
@@ -18,12 +20,14 @@ const stages = [
 ];
 export function Workshop({
   save,
+  onRename,
   onUpdate,
   onComplete,
   onExit,
   saveError,
 }: {
   save: Save;
+  onRename: (kind: EditableKind, id: string, title: string) => void;
   onUpdate: (fn: (save: Save) => Save) => void;
   onComplete: (id: string) => void;
   onExit: () => void;
@@ -261,7 +265,12 @@ export function Workshop({
             </>
           ) : (
             <>
-              <h3>{project.title}</h3>
+              <h3>
+                <EditableTitle
+                  title={project.title}
+                  onSave={(title) => onRename("projects", project.id, title)}
+                />
+              </h3>
               <p>
                 {progress.complete
                   ? "Project complete. You brought this one to life."
@@ -303,6 +312,7 @@ export function Workshop({
               <div className="project-milestones">
                 {project.milestones.map((m, i) => (
                   <Milestone
+                    onRename={onRename}
                     key={m.id}
                     milestone={m}
                     index={i}
@@ -348,12 +358,14 @@ export function Workshop({
   );
 }
 function Milestone({
+  onRename,
   milestone,
   index,
   save,
   onAdd,
   onComplete,
 }: {
+  onRename: (kind: EditableKind, id: string, title: string) => void;
   milestone: Save["projects"][number]["milestones"][number];
   index: number;
   save: Save;
@@ -369,7 +381,12 @@ function Milestone({
     <article className="project-milestone" tabIndex={-1}>
       <div className="milestone-heading">
         <span>{String(index + 1).padStart(2, "0")}</span>
-        <h4>{milestone.title}</h4>
+        <h4>
+          <EditableTitle
+            title={milestone.title}
+            onSave={(title) => onRename("milestones", milestone.id, title)}
+          />
+        </h4>
         <small>
           {tasks.length && done === tasks.length
             ? "✓ Done"
@@ -379,7 +396,10 @@ function Milestone({
       <ul className="room-missions">
         {tasks.map((task) => (
           <li key={task.id}>
-            <span>{task.title}</span>
+            <EditableTitle
+              title={task.title}
+              onSave={(title) => onRename("missions", task.id, title)}
+            />
             <button
               disabled={task.done}
               aria-label={

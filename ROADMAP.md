@@ -35,14 +35,17 @@
 - [x] Observatory interior with idea desk, clickable constellation, search, six-star pages and conversion into missions.
 - [ ] Free movement inside rooms.
 - [ ] Sound controls; reduced-motion support is already present.
-- Mission/idea editing, archiving, search and tags.
-- Versioned save repository, export/import and recovery from invalid saves.
-- Meaningful automated tests for progression, migration and save behavior.
+- [x] Mission/idea title editing, including shared Workshop tasks. Idea search is available in the Observatory.
+- [ ] Archiving, mission search and tags.
+- [x] JSON backup export, previewed restore and previous-world recovery, with version validation and failed-write protection.
+- [x] First-visit guide with replay and browser-local dismissal.
+- [x] Automated tests for progression, migration, editing and restore behavior.
 
 ## Checkpoint 3: ideas become projects
 
 - [x] Project Workshop building, multiple projects, milestones, shared mission tasks, four-stage progress model and v3 save migration with backups.
-- [ ] Project editing, archiving and idea-to-project conversion.
+- [x] Project and milestone title editing.
+- [ ] Project archiving and idea-to-project conversion.
 - Habit recurrence with timezone-aware dates and optional streaks.
 - Focus timer and weekly reflection.
 - Skill Garden and achievement gallery.
