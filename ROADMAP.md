@@ -45,7 +45,8 @@
 
 - [x] Project Workshop building, multiple projects, milestones, shared mission tasks, four-stage progress model and v3 save migration with backups.
 - [x] Project and milestone title editing.
-- [ ] Project archiving and idea-to-project conversion.
+- [x] Project archive/reopen shelves and idea-to-project conversion from the journal and Observatory; shared missions and XP are preserved.
+- [ ] Browser interaction and mobile visual QA for archive/reopen and idea-to-project conversion (browser connection unavailable during implementation).
 - Habit recurrence with timezone-aware dates and optional streaks.
 - Focus timer and weekly reflection.
 - Skill Garden and achievement gallery.

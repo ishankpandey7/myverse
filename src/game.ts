@@ -62,6 +62,7 @@ export const PLOTS = {
 } as const;
 export type PlotId = keyof typeof PLOTS;
 export type Project = {
+  archived?: boolean;
   id: string;
   title: string;
   milestones: { id: string; title: string; taskIds: string[] }[];
@@ -259,6 +260,7 @@ function validProjects(value: unknown, missions: Entry[]): value is Project[] {
       record(p) &&
       unique(p.id) &&
       title(p.title) &&
+      (p.archived === undefined || typeof p.archived === "boolean") &&
       Array.isArray(p.milestones) &&
       p.milestones.every((m) => {
         if (
@@ -382,4 +384,18 @@ export function projectProgress(save: Save, project: Project) {
     percent: ids.length ? Math.round((done / ids.length) * 100) : 0,
     stage: complete ? 3 : done > 0 ? 2 : ids.length > 0 ? 1 : 0,
   };
+}
+
+// Optional archive state keeps existing v3 worlds compatible.
+export function archiveProject(save: Save, id: string, archived: boolean): Save {
+  const project = save.projects.find((p) => p.id === id);
+  if (!project || !!project.archived === archived) return save;
+  return { ...save, projects: save.projects.map((p) => p.id === id ? { ...p, archived } : p) };
+}
+export function projectFromIdea(save: Save, id: string): Save {
+  const idea = save.ideas.find((item) => item.id === id);
+  if (!idea) return save;
+  const next = createProject(save, id, idea.title);
+  if (next === save) return save;
+  return { ...next, ideas: next.ideas.filter((item) => item.id !== id) };
 }

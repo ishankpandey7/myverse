@@ -20,6 +20,7 @@ export function ObservatoryRoom({
   onDraft,
   onAdd,
   onConvert,
+  onProject,
   onExit,
   saveError,
 }: {
@@ -29,6 +30,7 @@ export function ObservatoryRoom({
   onDraft: (value: string) => void;
   onAdd: () => void;
   onConvert: (id: string) => void;
+  onProject: (id: string) => void;
   onExit: () => void;
   saveError: string;
 }) {
@@ -346,8 +348,8 @@ export function ObservatoryRoom({
                 />
               </h4>
               <p>
-                This moves your idea to the mission board in Home Base. Complete
-                it there to earn XP.
+                One small step? Make it a mission. A bigger dream? Move it to
+                the Workshop as a project and break it into milestones.
               </p>
               <button
                 className="primary-action"
@@ -361,6 +363,9 @@ export function ObservatoryRoom({
                 }}
               >
                 Turn into a mission →
+              </button>
+              <button className="room-text-button" onClick={() => onProject(idea.id)}>
+                Build as a project ↗
               </button>
             </article>
           )}

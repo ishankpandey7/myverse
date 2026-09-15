@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   createProject,
+  archiveProject,
   addMilestone,
   addProjectTask,
   projectProgress,
@@ -19,6 +20,7 @@ const stages = [
   "Built with care",
 ];
 export function Workshop({
+  initialProject = "",
   save,
   onRename,
   onUpdate,
@@ -26,6 +28,7 @@ export function Workshop({
   onExit,
   saveError,
 }: {
+  initialProject?: string;
   save: Save;
   onRename: (kind: EditableKind, id: string, title: string) => void;
   onUpdate: (fn: (save: Save) => Save) => void;
@@ -34,7 +37,9 @@ export function Workshop({
   saveError: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [selected, setSelected] = useState(save.projects[0]?.id ?? "");
+  const [selected, setSelected] = useState(initialProject || save.projects.find((p) => !p.archived)?.id || "");
+  const [archivedView, setArchivedView] = useState(false);
+  const visibleProjects = save.projects.filter((p) => !!p.archived === archivedView);
   const [title, setTitle] = useState("");
   const [milestone, setMilestone] = useState("");
   const [message, setMessage] = useState("");
@@ -208,7 +213,15 @@ export function Workshop({
           className="room-panel workshop-panel"
           aria-label="Project planning"
         >
-          <label htmlFor="project-picker">On your workbench</label>
+          <div className="project-shelves" role="group" aria-label="Project shelves">
+            {[false, true].map((archived) => <button key={String(archived)} aria-pressed={archivedView === archived} onClick={() => {
+              setArchivedView(archived);
+              setSelected(save.projects.find((p) => !!p.archived === archived)?.id ?? "");
+              setMilestone("");
+              setMessage("");
+            }}>{archived ? "☾ Archived" : "✧ Workbench"} <span>{save.projects.filter((p) => !!p.archived === archived).length}</span></button>)}
+          </div>
+          <label htmlFor="project-picker">{archivedView ? "On your archive shelf" : "On your workbench"}</label>
           <select
             id="project-picker"
             value={selected}
@@ -218,14 +231,16 @@ export function Workshop({
               setMessage("");
             }}
           >
-            <option value="">Start a new project</option>
-            {save.projects.map((p) => (
+            <option value="">{archivedView ? "Choose an archived project" : "Start a new project"}</option>
+            {visibleProjects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.title}
               </option>
             ))}
           </select>
-          {!project ? (
+          {!project && archivedView ? (
+            <p className="room-empty">A quiet shelf for dreams on pause and finished builds. Archive a project from your workbench; bring it back whenever you like.</p>
+          ) : !project ? (
             <>
               <p className="eyebrow">MAKE ROOM FOR SOMETHING BIG</p>
               <h3>What will you build?</h3>
@@ -265,6 +280,16 @@ export function Workshop({
             </>
           ) : (
             <>
+              <div className="project-archive-card">
+                <p>{project.archived ? "Resting on your shelf. Reopen to plan here again." : "Need a little space? Keep this build on your archive shelf."} Tasks stay in Home Base; your progress and XP are kept.</p>
+                <button className="room-text-button" onClick={() => {
+                  onUpdate((s) => archiveProject(s, project.id, !project.archived));
+                  setArchivedView(!project.archived);
+                  setMilestone("");
+                  setMessage(project.archived ? "Back on the workbench. Ready when you are." : "Safely shelved. Reopen this project whenever you like.");
+                }}>{project.archived ? "↗ Reopen project" : "☾ Archive project"}</button>
+              </div>
+              <fieldset className="project-details" disabled={!!project.archived}>
               <h3>
                 <EditableTitle
                   title={project.title}
@@ -342,6 +367,7 @@ export function Workshop({
                   Start with one milestone: a clear result you want to reach.
                 </p>
               )}
+              </fieldset>
             </>
           )}
           <p className="room-feedback" role="status">

@@ -17,6 +17,7 @@ import {
   persistGame,
   completeMission,
   promoteIdea,
+  projectFromIdea,
   placeReward,
   removeReward,
   unlockedRewards,
@@ -45,6 +46,7 @@ function App() {
   );
   const [homeOpen, setHomeOpen] = useState(false);
   const [restoreEpoch, setRestoreEpoch] = useState(0);
+  const [workshopProject, setWorkshopProject] = useState("");
   const [workshopOpen, setWorkshopOpen] = useState(false);
   const [observatoryOpen, setObservatoryOpen] = useState(false);
   const [loaded] = useState(readCurrentGame);
@@ -69,6 +71,7 @@ function App() {
 
   function enterPlace(place: Place) {
     if (place === "workshop") {
+      setWorkshopProject("");
       setWorkshopOpen(true);
       return;
     }
@@ -179,6 +182,17 @@ function App() {
             " reached! +25 XP — keep growing."
         : "Mission complete. +25 XP — your world is growing!",
     );
+  }
+
+  function makeProject(id: string) {
+    const next = projectFromIdea(saveRef.current, id);
+    if (next === saveRef.current) return;
+    updateSave(() => next);
+    setObservatoryOpen(false);
+    setJournalOpen(false);
+    setWorkshopProject(id);
+    setWorkshopOpen(true);
+    setNotice("Your spark has a workbench. Add its first milestone.");
   }
 
   function makeMission(id: string) {
@@ -419,12 +433,12 @@ function App() {
                         {item.done ? "✓ Done" : "+25 XP"}
                       </button>
                     ) : (
-                      <button
+                      <div className="idea-actions"><button
                         onClick={() => makeMission(item.id)}
                         aria-label={`Turn ${item.title} into a mission`}
                       >
-                        Start →
-                      </button>
+                        Mission →
+                      </button><button onClick={() => makeProject(item.id)} aria-label={`Turn ${item.title} into a project`}>Project ↗</button></div>
                     )}
                   </li>
                 ))}
@@ -486,6 +500,7 @@ function App() {
       )}
       {workshopOpen && (
         <Workshop
+          initialProject={workshopProject}
           onRename={rename}
           save={save}
           onUpdate={updateSave}
@@ -516,6 +531,7 @@ function App() {
             setDrafts((previous) => ({ ...previous, ideas: "" }));
           }}
           onConvert={makeMission}
+          onProject={makeProject}
           saveError={saveError}
           onExit={() => {
             setObservatoryOpen(false);

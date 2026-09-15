@@ -151,3 +151,12 @@
     padding: 13px;
   }
 }
+
+.project-shelves { display: flex; gap: 8px; margin-bottom: 22px; }
+.project-shelves button { flex: 1; padding: 12px 8px; border: 1px solid #b8c5b430; border-radius: 10px; background: #14252a; color: #bac7c1; cursor: pointer; }
+.project-shelves button[aria-pressed="true"] { background: #afc09a20; border-color: #b7c3a4; color: #eee1bf; }
+.project-shelves span { margin-left: 5px; }
+.project-archive-card { border: 1px solid #c8ba982e; border-radius: 12px; padding: 12px 16px; margin: 0 0 22px; background: linear-gradient(120deg, #b9ab7f12, #738b940a); }
+.project-archive-card p { font-size: 11px; line-height: 1.7; color: #bac7c1; margin: 0; }
+.project-details { border: 0; padding: 0; margin: 0; min-width: 0; }
+.project-details:disabled { opacity: .7; }
