@@ -47,6 +47,7 @@
 - [x] Classic SVG switch and automatic fallback for unavailable/lost WebGL; quality/Eco control, responsive camera framing, paused rendering behind rooms and when offscreen, GPU cleanup and lazy loading.
 - [x] Free 360° camera with top/side/underside views, unrestricted screen-space pan, mouse/touch Pan mode and reset. Camera drags never trigger walking; the island underside cannot select hidden buildings or ground.
 - [x] Detailed 3D art pass: layered textured cliffs, branch-based evergreen foliage, stone/wood buildings, overlapping slate roofs, copper Observatory ribs, banded planet rings, environment reflections and reflective water. Locally generated materials require no asset service; shared textures are disposed with their model. Art remains stylized fantasy.
+- [x] Atmospheric 3D detail: soft, fading beacon light and a small waterfall mist particle system. Reduced motion freezes both effects; Eco hides the mist. These effects read the existing story state and grant no XP.
 - [ ] Physical touch-device input and GPU performance budgets for the 3D world. Room interiors remain SVG and station-based.
 
 ## Checkpoint 3: ideas become projects
@@ -89,5 +90,7 @@ Free-camera verification: native controls complete two full turns and reach over
 Detailed-art verification: a JSON backup restored the completed Workshop, avatar, decoration and lit constellation with 50 XP; the updated world opened all three rooms, switched Twilight/Daybreak and reached the underside with mouse orbit. Eco and the 393px phone viewport rendered without horizontal overflow. Reload and Classic → 3D retained the same progress and one canvas. Shared texture/shader-map disposal has a regression test. Representative physical phone/GPU performance remains unmeasured; increased geometry, textures and 2048px shadows still need device budgeting.
 
 ## Quality bar
+
+Atmosphere verification: beacon light and waterfall mist rendered without runtime/shader errors in normal and emulated reduced-motion modes. Eco toggled the mist detail and the 393px viewport retained one canvas without overflow. The completed Workshop and 50 XP remained intact. The current 3D bundle is about 173 KB gzipped, still above Vite's default chunk-warning threshold.
 
 Real functionality behind visible controls. No invented progress or fake metrics. Useful rewards without punishment for taking breaks. Verify saves, repeat completion, small screens and keyboard operation before calling a milestone ready.

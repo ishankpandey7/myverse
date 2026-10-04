@@ -1,6 +1,7 @@
 import * as T from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { createSurfacePalette, worldUV } from "./surfaces.ts";
+import { makeBeaconLight } from "./atmosphere.ts";
 import type { Surface } from "./surfaces";
 import { LAND, TREES, walkable } from "../navigation.ts";
 import { toWorld } from "./coordinates.ts";
@@ -910,6 +911,7 @@ export function makeAvatar(avatar: Avatar) {
 export function makeStory(save: Save) {
   const group = new T.Group(),
     targets: T.Object3D[] = [];
+  let light: ReturnType<typeof makeBeaconLight> | undefined;
   for (const id of FRAGMENT_IDS) {
     const spot = FRAGMENTS[id],
       p = toWorld(spot),
@@ -956,19 +958,8 @@ export function makeStory(save: Save) {
   gem.userData.discovery = "beacon";
   targets.push(gem);
   if (lit) {
-    const beam = new T.Mesh(
-      new T.CylinderGeometry(0.13, 0.22, 19, 16, 1, true),
-      new T.MeshBasicMaterial({
-        color: "#a6f2d2",
-        transparent: true,
-        opacity: 0.12,
-        depthWrite: false,
-        side: T.DoubleSide,
-        blending: T.AdditiveBlending,
-      }),
-    );
-    beam.position.set(p.x, 10.6, p.z);
-    group.add(beam);
+    light = makeBeaconLight(p.x, p.z);
+    group.add(light);
     for (let i = 0; i < 3; i++) {
       const ring = piece(
         group,
@@ -1003,7 +994,7 @@ export function makeStory(save: Save) {
     for (const point of points)
       sphere(constellation, "#c1efd6", point.x, point.y, point.z, 0.08, true);
   }
-  return { group, targets };
+  return { group, targets, light };
 }
 
 export function makeDecorations(save: Save) {

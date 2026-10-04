@@ -50,6 +50,8 @@ Save version 3 retains the original storage key and migrates v1/v2 saves without
 
 ## Technology and ownership
 
+The awakened beacon uses a soft light veil that fades upward and at its edges. Waterfall mist uses 48 locally textured particles in one draw call; Eco hides this detail. Both effects freeze with reduced motion and pause with the rest of the scene. `atmosphere.ts` builds these effects without changing story progress or XP.
+
 React + TypeScript + Vite + Three.js. The 3D world loads in a separate bundle, with code-generated geometry and shaders; it requires WebGL2. `src/world/three/coordinates.ts` maps the original navigation grid to 3D, `models.ts` builds scenery from shared saves, and `experience.ts` manages camera/input/rendering/lifecycle. SVG remains available for Classic and room interiors. No save migration or second progression system is introduced by 3D.
 
 The current art pass uses locally generated colour/bump textures, beveled architecture, instanced roof slates/foliage, environment reflections, sharper shadows and restrained bloom. `surfaces.ts` owns model-local material palettes and `celestial.ts` builds the planet. Maps are shared within each disposable model and released with its GPU resources. No external texture service, Blender installation or additional dependency is needed for this pass. This remains stylized fantasy, not photoreal artwork; bespoke imported models and animation are a future art decision.

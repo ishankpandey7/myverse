@@ -7,6 +7,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { makePlanet } from "./celestial";
 import { createSurfacePalette } from "./surfaces";
+import { makeWaterfallMist } from "./atmosphere";
 import { PLACES, SPAWN, distance, findPath, moveBy } from "../navigation";
 import type { Place, Point } from "../navigation";
 import type { Save } from "../../game";
@@ -255,6 +256,8 @@ function mountExperience(
   fall.position.set(fallPoint.x, -4.15, fallPoint.z);
   fall.rotation.y = 0.18;
   scene.add(fall);
+  const mist = makeWaterfallMist(fallPoint.x, fallPoint.z);
+  scene.add(mist.object);
   // A luminous channel connects the actual pond outlet to its fall.
   const outlet = new T.CatmullRomCurve3([
     new T.Vector3(pondPoint.x + 1.5, 0.06, pondPoint.z + 0.4),
@@ -635,6 +638,9 @@ function mountExperience(
     controls.update(dt);
     waterTime.value = reduced.matches ? 0 : elapsed;
     fallMaterial.uniforms.time.value = reduced.matches ? 0 : elapsed;
+    mist.update(reduced.matches ? 0 : elapsed);
+    if (story.light)
+      story.light.material.uniforms.time.value = reduced.matches ? 0 : elapsed;
     story.targets.forEach((gem, i) => {
       if (!reduced.matches) {
         gem.rotation.y = elapsed * 0.6;
@@ -782,6 +788,7 @@ function mountExperience(
     },
     eco(value: boolean) {
       eco = value;
+      mist.object.visible = !value;
       renderer.setPixelRatio(value ? 1 : Math.min(devicePixelRatio, 1.5));
       composer.setPixelRatio(renderer.getPixelRatio());
       renderer.shadowMap.enabled = !value;
