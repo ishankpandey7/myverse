@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as T from "three";
+import { createSurfacePalette } from "../src/world/three/surfaces.ts";
 import { LAND, SPAWN, PLACES } from "../src/world/navigation.ts";
 import { toWorld, toIsland } from "../src/world/three/coordinates.ts";
 import {
@@ -113,4 +114,30 @@ test("replacing a model releases shared GPU resources once", () => {
   disposeObject(group);
   assert.equal(geometryDisposed, 1);
   assert.equal(materialDisposed, 1);
+});
+
+test("textured model replacement releases shared maps and shader textures once", () => {
+  const palette = createSurfacePalette(),
+    first = palette("stone", "#999988"),
+    second = palette("stone", "#bbaaaa");
+  assert.equal(first.map, second.map);
+  const textures = [first.map, first.bumpMap],
+    disposed = [0, 0];
+  textures.forEach((texture, i) =>
+    texture.addEventListener("dispose", () => disposed[i]++),
+  );
+  const group = new T.Group(),
+    geometry = new T.BoxGeometry();
+  group.add(
+    new T.Mesh(geometry, first),
+    new T.Mesh(geometry, second),
+    new T.Mesh(
+      geometry,
+      new T.ShaderMaterial({ uniforms: { surface: { value: first.map } } }),
+    ),
+  );
+  disposeObject(group);
+  assert.deepEqual(disposed, [1, 1]);
+  assert.equal(first.map.colorSpace, T.SRGBColorSpace);
+  assert.equal(first.bumpMap.colorSpace, T.NoColorSpace);
 });

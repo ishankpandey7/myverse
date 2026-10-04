@@ -1,4 +1,7 @@
 import * as T from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { createSurfacePalette, worldUV } from "./surfaces.ts";
+import type { Surface } from "./surfaces";
 import { LAND, TREES, walkable } from "../navigation.ts";
 import { toWorld } from "./coordinates.ts";
 import { OUTFITS, SKINS, PLOTS, projectProgress } from "../../game.ts";
@@ -8,9 +11,8 @@ import { BEACON, FRAGMENTS, FRAGMENT_IDS } from "../../starfall.ts";
 export const material = (color: T.ColorRepresentation, glow = false) =>
   new T.MeshStandardMaterial({
     color,
-    roughness: 0.85,
-    flatShading: true,
-    ...(glow ? { emissive: color, emissiveIntensity: 2.5 } : {}),
+    roughness: 0.76,
+    ...(glow ? { emissive: color, emissiveIntensity: 0.8 } : {}),
   });
 export function piece(
   parent: T.Object3D,
@@ -38,7 +40,16 @@ export const box = (
   h: number,
   d: number,
   glow = false,
-) => piece(parent, new T.BoxGeometry(w, h, d), color, x, y, z, glow);
+) =>
+  piece(
+    parent,
+    new RoundedBoxGeometry(w, h, d, 2, Math.min(0.045, w / 5, h / 5, d / 5)),
+    color,
+    x,
+    y,
+    z,
+    glow,
+  );
 export const cylinder = (
   parent: T.Object3D,
   color: T.ColorRepresentation,
@@ -68,11 +79,32 @@ export const sphere = (
   z: number,
   r: number,
   glow = false,
-) => piece(parent, new T.SphereGeometry(r, 12, 8), color, x, y, z, glow);
+) => piece(parent, new T.SphereGeometry(r, 24, 16), color, x, y, z, glow);
+
+function surface<M extends T.Mesh>(object: M, kind: Surface) {
+  object.userData.surface = kind;
+  return object;
+}
+
+function finishModel(root: T.Group) {
+  const palette = createSurfacePalette(),
+    replaced = new Set<T.Material>();
+  root.traverse((object) => {
+    if (!(object instanceof T.Mesh) || !object.userData.surface) return;
+    const previous = object.material as T.MeshStandardMaterial;
+    object.material = palette(object.userData.surface, previous.color);
+    replaced.add(previous);
+    if (object.geometry.type === "RoundedBoxGeometry")
+      worldUV(object.geometry, 1.4);
+  });
+  replaced.forEach((m) => m.dispose());
+  return root;
+}
 
 export function disposeObject(root: T.Object3D) {
   const geometries = new Set<T.BufferGeometry>(),
-    materials = new Set<T.Material>();
+    materials = new Set<T.Material>(),
+    textures = new Set<T.Texture>();
   root.traverse((object) => {
     if (object instanceof T.InstancedMesh) object.dispose();
     if (
@@ -88,7 +120,15 @@ export function disposeObject(root: T.Object3D) {
     }
   });
   geometries.forEach((g) => g.dispose());
-  materials.forEach((m) => m.dispose());
+  materials.forEach((m) => {
+    for (const value of Object.values(m))
+      if (value instanceof T.Texture) textures.add(value);
+    if (m instanceof T.ShaderMaterial)
+      for (const uniform of Object.values(m.uniforms))
+        if (uniform.value instanceof T.Texture) textures.add(uniform.value);
+    m.dispose();
+  });
+  textures.forEach((texture) => texture.dispose());
 }
 
 function pitchedRoof(
@@ -113,6 +153,62 @@ function pitchedRoof(
     -depth / 2,
   );
   roof.name = "pitched-roof";
+  surface(roof, "slate");
+  // Actual overlapping slates catch light at grazing angles; one instanced draw.
+  const half = width / 2,
+    slope = Math.atan2(rise, half),
+    length = Math.hypot(half, rise);
+  const rows = 10,
+    columns = Math.ceil(depth / 0.28);
+  const tiles = surface(
+    new T.InstancedMesh(
+      new T.BoxGeometry(length / rows + 0.035, 0.035, depth / columns + 0.025),
+      material(color),
+      rows * columns * 2,
+    ),
+    "slate",
+  );
+  const matrix = new T.Matrix4();
+  let index = 0;
+  for (const side of [-1, 1])
+    for (let row = 0; row < rows; row++)
+      for (let col = 0; col < columns; col++) {
+        const t = (row + 0.5) / rows;
+        matrix.compose(
+          new T.Vector3(
+            side * half * (1 - t),
+            y + rise * t + 0.05,
+            -depth / 2 + ((col + 0.5) * depth) / columns,
+          ),
+          new T.Quaternion().setFromAxisAngle(
+            new T.Vector3(0, 0, 1),
+            -side * slope,
+          ),
+          new T.Vector3(1, 1, 1),
+        );
+        tiles.setMatrixAt(index++, matrix);
+        tiles.setColorAt(
+          index - 1,
+          new T.Color().setScalar(0.72 + ((row * 13 + col * 7) % 11) * 0.025),
+        );
+      }
+  tiles.castShadow = tiles.receiveShadow = true;
+  parent.add(tiles);
+  const ridge = surface(
+    cylinder(
+      parent,
+      "#6d7976",
+      0,
+      y + rise + 0.1,
+      0,
+      0.09,
+      0.09,
+      depth + 0.1,
+      16,
+    ),
+    "metal",
+  );
+  ridge.rotation.x = Math.PI / 2;
   return roof;
 }
 
@@ -123,48 +219,73 @@ function facetedIsland(
   color: string,
 ) {
   const vertices: number[] = [],
-    colors: number[] = [];
+    colors: number[] = [],
+    uvs: number[] = [];
   const addFace = (a: T.Vector3, b: T.Vector3, c: T.Vector3, tint: string) => {
-    for (const p of [a, b, c]) vertices.push(p.x, p.y, p.z);
+    const normal = new T.Vector3().crossVectors(
+      b.clone().sub(a),
+      c.clone().sub(a),
+    );
+    for (const p of [a, b, c]) {
+      vertices.push(p.x, p.y, p.z);
+      uvs.push(
+        (Math.abs(normal.x) > Math.abs(normal.z) ? p.z : p.x) / 3,
+        p.y / 3,
+      );
+    }
     const shade = new T.Color(tint);
     for (let i = 0; i < 3; i++) colors.push(shade.r, shade.g, shade.b);
   };
-  const stone = ["#415063", "#536373", "#303e55", "#5c6874", "#38475e"];
-  // Adjacent faces share one lower ring so orbiting below cannot reveal cracks.
-  const lower = outline.map(
-    (p, i) =>
-      new T.Vector3(p.x * 0.85, -depth * (0.6 + (i % 3) * 0.11), p.z * 0.85),
+  const stone = ["#79847e", "#7c817c", "#6b7775", "#818782", "#737e7d"];
+  // Shared rings retain the exact walking outline while adding eroded rock ledges.
+  const rings = [0, 0.1, 0.23, 0.43, 0.65, 0.87, 1.1].map((level, ring) =>
+    outline.map((p, i) => {
+      const shrink =
+        ring === 0
+          ? 1
+          : 1 - level * 0.31 + Math.sin(i * 2.4 + ring * 1.9) * 0.025;
+      return new T.Vector3(
+        p.x * shrink,
+        ring === 0 ? 0 : -depth * level + Math.sin(i * 2.1 + ring) * 0.18,
+        p.z * shrink,
+      );
+    }),
   );
-  for (let i = 0; i < outline.length; i++) {
-    const a = outline[i],
-      b = outline[(i + 1) % outline.length];
-    const at = new T.Vector3(a.x, 0, a.z),
-      bt = new T.Vector3(b.x, 0, b.z);
-    const ab = lower[i],
-      bb = lower[(i + 1) % outline.length];
-    addFace(at, bt, ab, stone[i % stone.length]);
-    addFace(bt, bb, ab, stone[(i + 2) % stone.length]);
+  for (let ring = 0; ring < rings.length - 1; ring++)
+    for (let i = 0; i < outline.length; i++) {
+      const next = (i + 1) % outline.length;
+      addFace(
+        rings[ring][i],
+        rings[ring][next],
+        rings[ring + 1][i],
+        stone[(i + ring) % stone.length],
+      );
+      addFace(
+        rings[ring][next],
+        rings[ring + 1][next],
+        rings[ring + 1][i],
+        stone[(i + ring + 1) % stone.length],
+      );
+    }
+  const lower = rings[rings.length - 1];
+  for (let i = 0; i < outline.length; i++)
     addFace(
-      ab,
-      bb,
+      lower[i],
+      lower[(i + 1) % outline.length],
       new T.Vector3(0, -depth * 1.65, 0),
-      stone[(i + 3) % stone.length],
+      stone[i % stone.length],
     );
-  }
   const geo = new T.BufferGeometry();
   geo.setAttribute("position", new T.Float32BufferAttribute(vertices, 3));
   geo.setAttribute("color", new T.Float32BufferAttribute(colors, 3));
+  geo.setAttribute("uv", new T.Float32BufferAttribute(uvs, 2));
   geo.computeVertexNormals();
-  const rock = new T.Mesh(
-    geo,
-    new T.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 1,
-      flatShading: true,
-      side: T.DoubleSide,
-    }),
-  );
+  const rockMaterial = createSurfacePalette()("rock", "#a9aaa4");
+  rockMaterial.vertexColors = true;
+  rockMaterial.side = T.DoubleSide;
+  const rock = new T.Mesh(geo, rockMaterial);
   rock.castShadow = true;
+  rock.receiveShadow = true;
   rock.name = "island-cliff";
   parent.add(rock);
   const shape = new T.Shape();
@@ -173,6 +294,15 @@ function facetedIsland(
   );
   shape.closePath();
   const ground = piece(parent, new T.ShapeGeometry(shape), color);
+  ground.material.dispose();
+  ground.material = createSurfacePalette()("meadow", color);
+  const positions = ground.geometry.getAttribute("position"),
+    uv = new Float32Array(positions.count * 2);
+  for (let i = 0; i < positions.count; i++) {
+    uv[i * 2] = positions.getX(i) / 4;
+    uv[i * 2 + 1] = positions.getY(i) / 4;
+  }
+  ground.geometry.setAttribute("uv", new T.BufferAttribute(uv, 2));
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   return ground;
@@ -202,7 +332,8 @@ function road(parent: T.Object3D, points: number[][], width = 0.52) {
   geo.setAttribute("position", new T.Float32BufferAttribute(verts, 3));
   geo.setIndex(indices);
   geo.computeVertexNormals();
-  const path = piece(parent, geo, "#c6b995");
+  worldUV(geo, 1.5);
+  const path = surface(piece(parent, geo, "#b1a58b"), "path");
   (path.material as T.MeshStandardMaterial).side = T.DoubleSide;
   return path;
 }
@@ -212,23 +343,64 @@ function pine(parent: T.Object3D, x: number, z: number, scale: number) {
   tree.position.set(x, 0, z);
   tree.scale.setScalar(scale);
   parent.add(tree);
-  cylinder(tree, "#685e55", 0, 0.8, 0, 0.11, 0.15, 1.6, 7);
-  for (let i = 0; i < 3; i++) {
-    const crown = piece(
-      tree,
-      new T.ConeGeometry(1.0 - i * 0.18, 1.8, 7),
-      ["#315650", "#426e61", "#63917a"][i],
-      0,
-      1.2 + i * 0.65,
-      0,
-    );
-    crown.rotation.y = i * 0.5;
+  surface(cylinder(tree, "#75634b", 0, 1.7, 0, 0.035, 0.14, 3.4, 12), "wood");
+  const verts: number[] = [];
+  // Branch fans, not stacked cones: their gaps give each tree an irregular silhouette.
+  for (let i = 0; i < 12; i++) {
+    const along = i / 12,
+      width = 0.32 * Math.sin((along + 0.1) * Math.PI);
+    for (const side of [-1, 1])
+      verts.push(
+        along,
+        0.03,
+        0,
+        along - 0.12,
+        -0.03,
+        side * width,
+        along + 0.24,
+        0.07,
+        side * width * 0.3,
+      );
   }
+  const geometry = new T.BufferGeometry();
+  geometry.setAttribute("position", new T.Float32BufferAttribute(verts, 3));
+  geometry.computeVertexNormals();
+  const foliageMaterial = material("#3b5945");
+  foliageMaterial.side = T.DoubleSide;
+  const needles = new T.InstancedMesh(geometry, foliageMaterial, 80),
+    matrix = new T.Matrix4();
+  let count = 0;
+  for (let tier = 0; tier < 10; tier++)
+    for (let branch = 0; branch < 8; branch++) {
+      const angle = (branch * Math.PI) / 4 + tier * 1.73 + x * 0.2,
+        radius = 1.25 * (1 - tier / 11);
+      const rotation = new T.Quaternion().setFromEuler(
+        new T.Euler(0, angle, -0.16 + Math.sin(branch * 3.1 + tier) * 0.12),
+      );
+      matrix.compose(
+        new T.Vector3(
+          Math.cos(angle) * 0.045,
+          0.8 + tier * 0.27,
+          -Math.sin(angle) * 0.045,
+        ),
+        rotation,
+        new T.Vector3(radius, 1, radius),
+      );
+      needles.setMatrixAt(count, matrix);
+      needles.setColorAt(
+        count++,
+        new T.Color(
+          ["#70907a", "#8caa83", "#4d6b57", "#adc096"][(branch + tier) % 4],
+        ),
+      );
+    }
+  needles.castShadow = needles.receiveShadow = true;
+  tree.add(needles);
 }
 
 export function makeTerrain() {
   const group = new T.Group(),
-    top = facetedIsland(group, LAND.map(toWorld), 4.3, "#799983");
+    top = facetedIsland(group, LAND.map(toWorld), 4.3, "#768364");
   top.name = "walkable-island";
   road(group, [
     [303, 516],
@@ -261,27 +433,73 @@ export function makeTerrain() {
     pine(group, p.x, p.z, s * 0.83);
   }
   // Shared, instanced meadow tufts keep hundreds of plants to one draw call.
-  const grass = new T.InstancedMesh(
-      new T.ConeGeometry(0.085, 0.32, 3),
-      material("#a2bd85"),
-      220,
-    ),
+  const bladeVertices: number[] = [];
+  for (let blade = 0; blade < 3; blade++) {
+    const angle = blade * 2.4,
+      x = Math.cos(angle),
+      z = Math.sin(angle);
+    const points = [
+      new T.Vector3(-x * 0.025, 0, -z * 0.025),
+      new T.Vector3(x * 0.025, 0, z * 0.025),
+      new T.Vector3(-x * 0.012, 0.15, -z * 0.012),
+      new T.Vector3(x * 0.025, 0.15, z * 0.025),
+      new T.Vector3(x * 0.07, 0.3 - blade * 0.025, z * 0.07),
+    ];
+    for (const i of [0, 1, 2, 1, 3, 2, 2, 3, 4])
+      bladeVertices.push(...points[i].toArray());
+  }
+  const bladeGeometry = new T.BufferGeometry();
+  bladeGeometry.setAttribute(
+    "position",
+    new T.Float32BufferAttribute(bladeVertices, 3),
+  );
+  bladeGeometry.computeVertexNormals();
+  const grass = new T.InstancedMesh(bladeGeometry, material("#6e8050"), 700),
     matrix = new T.Matrix4();
   let count = 0;
-  for (let i = 0; i < 650 && count < 220; i++) {
+  (grass.material as T.MeshStandardMaterial).side = T.DoubleSide;
+  for (let i = 0; i < 2400 && count < 700; i++) {
     const point = { x: 160 + ((i * 137) % 1060), y: 275 + ((i * 89) % 440) };
     if (!walkable(point) || (point.y < 510 && point.x > 370 && point.x < 1050))
       continue;
     const p = toWorld(point);
     matrix.compose(
-      new T.Vector3(p.x, 0.12, p.z),
+      new T.Vector3(p.x, 0.01, p.z),
       new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), i),
       new T.Vector3(1, 0.7 + (i % 5) * 0.17, 1),
     );
     grass.setMatrixAt(count++, matrix);
   }
   grass.count = count;
+  grass.receiveShadow = true;
   group.add(grass);
+  // Surface stones and a broken shoreline add scale without changing collision rules.
+  const stones = surface(
+    new T.InstancedMesh(
+      new T.IcosahedronGeometry(1, 1),
+      material("#899188"),
+      120,
+    ),
+    "rock",
+  );
+  for (let i = 0; i < 120; i++) {
+    const angle = i * 2.39996,
+      shore = i < 48;
+    const point = shore
+      ? { x: 840 + Math.cos(angle) * 118, y: 620 + Math.sin(angle) * 65 }
+      : { x: 160 + ((i * 137) % 1060), y: 295 + ((i * 113) % 440) };
+    const p = toWorld(point),
+      size = shore ? 0.13 + (i % 4) * 0.025 : 0.06 + (i % 5) * 0.025;
+    matrix.compose(
+      new T.Vector3(p.x, 0.02, p.z),
+      new T.Quaternion().setFromEuler(new T.Euler(i, i * 0.7, i * 0.3)),
+      new T.Vector3(size * 1.6, size * 0.75, size),
+    );
+    if (!shore && !walkable(point)) matrix.makeScale(0, 0, 0);
+    stones.setMatrixAt(i, matrix);
+  }
+  stones.receiveShadow = stones.castShadow = true;
+  group.add(stones);
   for (let i = 0; i < 26; i++) {
     const point = { x: 370 + ((i * 61) % 710), y: 325 + ((i * 93) % 365) };
     if (!walkable(point)) continue;
@@ -314,80 +532,269 @@ export function makeTerrain() {
     pine(distant, 3, -1, 0.8);
     group.add(distant);
   }
+  finishModel(group);
+  // Paths remain double-sided after palette assignment.
+  group.traverse((mesh) => {
+    if (mesh instanceof T.Mesh && mesh.userData.surface === "path")
+      (mesh.material as T.MeshStandardMaterial).side = T.DoubleSide;
+  });
   return { group, top };
+}
+
+function windowPane(
+  parent: T.Object3D,
+  x: number,
+  y: number,
+  z: number,
+  width: number,
+  height: number,
+  angle = 0,
+) {
+  const group = new T.Group();
+  group.position.set(x, y, z);
+  group.rotation.y = angle;
+  parent.add(group);
+  surface(
+    box(group, "#4c4439", 0, 0, 0, width + 0.15, height + 0.15, 0.11),
+    "wood",
+  );
+  box(group, "#bd9e67", 0, 0, 0.06, width, height, 0.025, true);
+  for (const side of [-1, 1]) {
+    surface(
+      box(
+        group,
+        "#796647",
+        (side * width) / 2,
+        0,
+        0.1,
+        0.065,
+        height + 0.12,
+        0.07,
+      ),
+      "wood",
+    );
+    surface(
+      box(
+        group,
+        "#796647",
+        0,
+        (side * height) / 2,
+        0.1,
+        width + 0.12,
+        0.065,
+        0.07,
+      ),
+      "wood",
+    );
+  }
+  surface(box(group, "#4c463c", 0, 0, 0.11, 0.045, height, 0.055), "wood");
+  surface(box(group, "#4c463c", 0, -0.05, 0.11, width, 0.045, 0.055), "wood");
+  surface(
+    box(group, "#948573", 0, -height / 2 - 0.11, 0.04, width + 0.3, 0.12, 0.3),
+    "stone",
+  );
+  return group;
+}
+
+function beam(
+  parent: T.Object3D,
+  a: T.Vector3,
+  b: T.Vector3,
+  width = 0.09,
+  color = "#675644",
+) {
+  const center = a.clone().add(b).multiplyScalar(0.5),
+    mesh = surface(
+      box(
+        parent,
+        color,
+        center.x,
+        center.y,
+        center.z,
+        width,
+        a.distanceTo(b),
+        width,
+      ),
+      "wood",
+    );
+  mesh.quaternion.setFromUnitVectors(
+    new T.Vector3(0, 1, 0),
+    b.clone().sub(a).normalize(),
+  );
+  return mesh;
 }
 
 export function makeHome() {
   const home = new T.Group(),
     p = toWorld({ x: 490, y: 420 });
   home.position.set(p.x, 0, p.z);
-  box(home, "#b99d7c", 0, 0.16, 0, 4, 0.32, 2.8);
-  box(home, "#e3c9a2", 0, 1.45, 0, 3.5, 2.6, 2.3);
-  box(home, "#a58d7b", 0, 0.5, 1.3, 2.6, 0.25, 0.55);
-  pitchedRoof(home, "#655e8c", 4, 1.35, 2.9, 2.75);
-  box(home, "#bfab93", 1.05, 3.65, -0.42, 0.38, 1.9, 0.42);
-  box(home, "#5b494d", 0.4, 1.03, 1.18, 0.68, 1.8, 0.12);
-  box(home, "#ffd395", 0.4, 1.1, 1.26, 0.47, 1.35, 0.025, true);
-  for (const x of [-1.15, 1.15]) {
-    box(home, "#6b6370", x, 1.6, 1.17, 0.65, 0.9, 0.12);
-    box(home, "#ffd79f", x, 1.6, 1.25, 0.48, 0.72, 0.025, true);
-    box(home, "#9c8170", x, 1.6, 1.28, 0.04, 0.8, 0.035);
-    box(home, "#9c8170", x, 1.6, 1.28, 0.55, 0.05, 0.035);
+  surface(box(home, "#9c9786", 0, 0.16, 0, 4, 0.32, 2.8), "stone");
+  surface(box(home, "#d3c6ac", 0, 1.45, 0, 3.5, 2.6, 2.3), "stone");
+  surface(box(home, "#969381", 0, 0.5, 1.3, 2.6, 0.25, 0.55), "stone");
+  surface(box(home, "#a9a08a", 0, 0.3, 1.57, 2.8, 0.18, 0.38), "stone");
+  pitchedRoof(home, "#43515c", 4, 1.35, 2.9, 2.75);
+  surface(box(home, "#a79982", 1.05, 3.65, -0.42, 0.42, 1.9, 0.46), "stone");
+  surface(box(home, "#69695f", 1.05, 4.59, -0.42, 0.55, 0.13, 0.59), "stone");
+  box(home, "#333c3b", 1.05, 4.66, -0.42, 0.28, 0.02, 0.29);
+  // Timber corners, lintels and gable trusses make the cottage read from every angle.
+  for (const x of [-1.72, 1.72])
+    for (const z of [-1.13, 1.13])
+      surface(box(home, "#675542", x, 1.51, z, 0.14, 2.6, 0.14), "wood");
+  for (const z of [-1.17, 1.17]) {
+    surface(box(home, "#675542", 0, 2.62, z, 3.6, 0.14, 0.14), "wood");
+    surface(box(home, "#675542", 0, 0.7, z, 3.6, 0.12, 0.12), "wood");
+    beam(
+      home,
+      new T.Vector3(-1.7, 2.78, z * 1.26),
+      new T.Vector3(0, 3.95, z * 1.26),
+    );
+    beam(
+      home,
+      new T.Vector3(1.7, 2.78, z * 1.26),
+      new T.Vector3(0, 3.95, z * 1.26),
+    );
+    beam(
+      home,
+      new T.Vector3(0, 2.78, z * 1.26),
+      new T.Vector3(0, 3.95, z * 1.26),
+    );
   }
-  for (const x of [-1.65, 1.7]) {
-    sphere(home, "#8eae79", x, 0.35, 1.25, 0.4);
-    sphere(home, "#abbc8a", x, 0.55, 1.25, 0.3);
+  surface(box(home, "#554737", 0.4, 1.08, 1.2, 0.72, 1.8, 0.14), "wood");
+  windowPane(home, 0.4, 1.57, 1.29, 0.43, 0.53);
+  surface(sphere(home, "#b5a176", 0.62, 1.02, 1.31, 0.035), "metal");
+  for (const x of [-1.12, 1.16]) windowPane(home, x, 1.65, 1.2, 0.62, 0.82);
+  for (const x of [-1.76, 1.76])
+    windowPane(
+      home,
+      x,
+      1.65,
+      -0.1,
+      0.68,
+      0.9,
+      x > 0 ? Math.PI / 2 : -Math.PI / 2,
+    );
+  windowPane(home, -0.6, 1.65, -1.2, 0.7, 0.85, Math.PI);
+  for (const x of [-1.6, 1.65]) {
+    surface(box(home, "#786550", x, 0.34, 1.26, 0.72, 0.4, 0.45), "wood");
+    for (let i = 0; i < 6; i++) {
+      const leaf = sphere(
+        home,
+        ["#657750", "#859369", "#586f55"][i % 3],
+        x + Math.sin(i * 2.4) * 0.2,
+        0.62 + (i % 2) * 0.12,
+        1.26 + Math.cos(i * 2.4) * 0.12,
+        0.18,
+      );
+      leaf.scale.y = 0.7;
+    }
   }
-  return home;
+  const porchLight = new T.PointLight("#edb76a", 1.2, 4, 2);
+  porchLight.position.set(0.4, 1.75, 1.8);
+  home.add(porchLight);
+  return finishModel(home);
 }
 
 export function makeObservatory() {
   const group = new T.Group(),
     p = toWorld({ x: 975, y: 381 });
   group.position.set(p.x, 0, p.z);
-  cylinder(group, "#b4acbb", 0, 0.18, 0, 1.6, 1.65, 0.36, 20);
-  cylinder(group, "#a49bbd", 0, 1.6, 0, 1.28, 1.4, 2.7, 16);
-  cylinder(group, "#d4c2bf", 0, 3.02, 0, 1.43, 1.43, 0.15, 24);
-  piece(
-    group,
-    new T.SphereGeometry(1.43, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
-    "#7f83ac",
-    0,
-    3.1,
-    0,
+  surface(cylinder(group, "#a0a397", 0, 0.18, 0, 1.6, 1.65, 0.36, 48), "stone");
+  surface(cylinder(group, "#c0bbaa", 0, 1.6, 0, 1.28, 1.4, 2.7, 48), "stone");
+  surface(
+    cylinder(group, "#5a817c", 0, 3.02, 0, 1.43, 1.43, 0.15, 64),
+    "metal",
   );
-  const rim = piece(
-    group,
-    new T.TorusGeometry(1.46, 0.055, 6, 30),
-    "#c0b8ce",
-    0,
-    3.13,
-    0,
+  surface(
+    piece(
+      group,
+      new T.SphereGeometry(1.43, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2),
+      "#477e78",
+      0,
+      3.1,
+      0,
+    ),
+    "metal",
+  );
+  const rim = surface(
+    piece(
+      group,
+      new T.TorusGeometry(1.46, 0.055, 6, 30),
+      "#a08c60",
+      0,
+      3.13,
+      0,
+    ),
+    "metal",
   );
   rim.rotation.x = Math.PI / 2;
+  for (let i = 0; i < 12; i++) {
+    const angle = (i * Math.PI) / 6,
+      points: T.Vector3[] = [];
+    for (let n = 0; n <= 20; n++) {
+      const phi = ((n / 20) * Math.PI) / 2;
+      points.push(
+        new T.Vector3(
+          Math.sin(phi) * Math.cos(angle) * 1.445,
+          3.1 + Math.cos(phi) * 1.445,
+          Math.sin(phi) * Math.sin(angle) * 1.445,
+        ),
+      );
+    }
+    surface(
+      piece(
+        group,
+        new T.TubeGeometry(new T.CatmullRomCurve3(points), 20, 0.018, 5, false),
+        "#ac9f76",
+      ),
+      "metal",
+    );
+  }
+  for (const y of [0.62, 2.65])
+    surface(
+      cylinder(
+        group,
+        "#969b8c",
+        0,
+        y,
+        0,
+        1.44 - y * 0.043,
+        1.44 - y * 0.043,
+        0.09,
+        48,
+      ),
+      "stone",
+    );
   const telescope = new T.Group();
   telescope.position.set(0.55, 3.9, 0.2);
   telescope.rotation.z = -0.6;
   group.add(telescope);
-  cylinder(telescope, "#cbb590", 0, 0.65, 0, 0.18, 0.26, 1.9, 14);
-  cylinder(telescope, "#e6d4aa", 0, 1.58, 0, 0.34, 0.34, 0.3, 14);
-  cylinder(telescope, "#71c5d4", 0, 1.745, 0, 0.27, 0.27, 0.04, 14, true);
-  box(group, "#f8d194", 0, 1.06, 1.35, 0.62, 1.76, 0.07, true);
-  for (const angle of [-0.8, 0.8, 2.5]) {
-    const pane = box(
-      group,
-      "#e5cfad",
-      Math.sin(angle) * 1.35,
-      1.9,
-      Math.cos(angle) * 1.35,
-      0.3,
-      0.6,
-      0.07,
-      true,
+  surface(
+    cylinder(telescope, "#bda16a", 0, 0.65, 0, 0.18, 0.26, 1.9, 24),
+    "metal",
+  );
+  for (const y of [0.1, 1, 1.58])
+    surface(
+      cylinder(telescope, "#595e5a", 0, y, 0, 0.28, 0.28, 0.1, 24),
+      "metal",
     );
-    pane.rotation.y = angle;
-  }
-  return group;
+  surface(
+    cylinder(telescope, "#b8a77c", 0, 1.58, 0, 0.34, 0.34, 0.3, 24),
+    "metal",
+  );
+  cylinder(telescope, "#294c60", 0, 1.745, 0, 0.27, 0.27, 0.04, 24);
+  surface(box(group, "#605841", 0, 1.1, 1.39, 0.72, 1.76, 0.12), "wood");
+  windowPane(group, 0, 1.51, 1.47, 0.43, 0.65);
+  for (const angle of [-0.8, 0.8, 2, -2.5])
+    windowPane(
+      group,
+      Math.sin(angle) * 1.34,
+      1.85,
+      Math.cos(angle) * 1.34,
+      0.37,
+      0.74,
+      angle,
+    );
+  return finishModel(group);
 }
 
 export function makeWorkshop(save: Save, projectId: string) {
@@ -398,23 +805,42 @@ export function makeWorkshop(save: Save, projectId: string) {
     stage = project ? projectProgress(save, project).stage : 0;
   group.userData = { projectId: project?.id ?? "", stage };
   group.name = "living-workshop";
-  box(group, "#8e9188", 0, 0.16, 0, 2.8, 0.32, 2.05);
+  surface(box(group, "#a2a38f", 0, 0.16, 0, 2.8, 0.32, 2.05), "stone");
   box(group, "#355b70", 0, 0.34, 0, 2.5, 0.02, 1.8);
   for (const x of [-1.15, 1.15])
     for (const z of [-0.8, 0.8])
-      box(group, "#c4a77e", x, 1.6, z, 0.12, 2.6, 0.12);
+      surface(box(group, "#a7936d", x, 1.6, z, 0.15, 2.6, 0.15), "wood");
   for (const z of [-0.8, 0.8])
-    box(group, "#c4a77e", 0, 2.85, z, 2.45, 0.14, 0.14);
+    surface(box(group, "#a7936d", 0, 2.85, z, 2.45, 0.14, 0.14), "wood");
+  for (const x of [-1.15, 1.15])
+    for (const z of [-0.8, 0.8])
+      beam(
+        group,
+        new T.Vector3(x, 2.25, z),
+        new T.Vector3(x * 0.65, 2.8, z),
+        0.075,
+        "#8c7858",
+      );
   if (stage >= 1) {
     for (const x of [-1.1, 1.1]) {
-      box(group, "#b7aa90", x, 1.4, 0, 0.13, 2.15, 1.8);
+      surface(box(group, "#bcae90", x, 1.4, 0, 0.13, 2.15, 1.8), "wood");
+      windowPane(
+        group,
+        x * 1.07,
+        1.7,
+        0,
+        0.62,
+        0.75,
+        x > 0 ? Math.PI / 2 : -Math.PI / 2,
+      );
     }
-    box(group, "#a7a28f", 0, 1.4, -0.8, 2.2, 2.15, 0.15);
+    surface(box(group, "#b2a587", 0, 1.4, -0.8, 2.2, 2.15, 0.15), "wood");
   }
   if (stage >= 2) {
-    box(group, "#d0b692", 0, 1.4, 0.82, 2.2, 2.15, 0.15);
-    box(group, "#efcd8b", 0, 1.05, 0.91, 0.6, 1.45, 0.03, true);
-    pitchedRoof(group, "#478c83", 2.9, 1, 2.3, 2.75);
+    surface(box(group, "#c6b58f", 0, 1.4, 0.82, 2.2, 2.15, 0.15), "wood");
+    surface(box(group, "#72644a", 0, 1.05, 0.91, 0.65, 1.45, 0.1), "wood");
+    windowPane(group, 0, 1.43, 1, 0.42, 0.55);
+    pitchedRoof(group, "#476b63", 2.9, 1, 2.3, 2.75);
   }
   if (stage === 3) {
     cylinder(group, "#cfc09b", 0.9, 3.9, 0, 0.025, 0.025, 1.5, 6);
@@ -422,10 +848,12 @@ export function makeWorkshop(save: Save, projectId: string) {
     for (const x of [-1.6, 1.6]) sphere(group, "#adca97", x, 0.35, 0.8, 0.38);
   }
   // Tools and rolled plans make an unfinished build feel intentional.
-  box(group, "#ba9874", -1.72, 0.62, 0.3, 0.7, 1.1, 0.9);
+  surface(box(group, "#9d845c", -1.72, 0.62, 0.3, 0.7, 1.1, 0.9), "wood");
+  for (const y of [0.25, 1])
+    surface(box(group, "#535e59", -1.72, y, 0.77, 0.75, 0.07, 0.04), "metal");
   cylinder(group, "#f0d8a3", -1.73, 1.23, 0.3, 0.06, 0.06, 0.7, 8).rotation.z =
     Math.PI / 2;
-  return group;
+  return finishModel(group);
 }
 
 export function makeAvatar(avatar: Avatar) {

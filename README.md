@@ -15,7 +15,7 @@ Open the localhost link printed in the terminal. `npm run build` checks TypeScri
 
 ## Current checkpoint: explore Moonhollow
 
-- A playable 3D floating island with faceted cliffs, pine woods, a cottage, evolving Workshop, domed Observatory, animated pond/waterfall, a ringed planet and star field. The existing SVG island is available through Classic view and automatic WebGL fallback. Interiors remain SVG rooms.
+- A playable 3D floating island with layered, textured cliffs, branch-based pine woods, a stone-and-timber cottage, evolving Workshop, copper-domed Observatory, reflective pond/waterfall, a banded ringed planet and star field. The existing SVG island is available through Classic view and automatic WebGL fallback. Interiors remain SVG rooms.
 - Click/tap the ground to walk; click a building to visit. Drag to orbit the 3D camera through a full 360° with top, side and underside views (pan in Classic). Right-drag or Shift-drag to move the camera freely. Pan camera mode makes left-drag or one-finger touch move the view and disables tap walking until switched off. Two-finger touch combines pan and pinch zoom. Reset camera restores the initial view and rotate mode. Focus the world and use WASD/arrow keys for camera-relative movement in 3D; Escape stops a route. E/Enter opens a nearby building.
 - Select Home Base, Workshop or Observatory to walk to its entrance and open the shared room. Destination controls also work with keyboard and touch.
 - Pinch or scroll over the world to zoom; +/− also work. Manual camera input releases follow/orbit. Classic retains its 50–200% cursor-anchored zoom. Scrolling outside the canvas scrolls the page.
@@ -51,6 +51,8 @@ Save version 3 retains the original storage key and migrates v1/v2 saves without
 ## Technology and ownership
 
 React + TypeScript + Vite + Three.js. The 3D world loads in a separate bundle, with code-generated geometry and shaders; it requires WebGL2. `src/world/three/coordinates.ts` maps the original navigation grid to 3D, `models.ts` builds scenery from shared saves, and `experience.ts` manages camera/input/rendering/lifecycle. SVG remains available for Classic and room interiors. No save migration or second progression system is introduced by 3D.
+
+The current art pass uses locally generated colour/bump textures, beveled architecture, instanced roof slates/foliage, environment reflections, sharper shadows and restrained bloom. `surfaces.ts` owns model-local material palettes and `celestial.ts` builds the planet. Maps are shared within each disposable model and released with its GPU resources. No external texture service, Blender installation or additional dependency is needed for this pass. This remains stylized fantasy, not photoreal artwork; bespoke imported models and animation are a future art decision.
 
 Tests also cover alignment between 3D ground and navigation, Workshop growth from shared missions, and disposal of shared rendering resources. Browser QA uses `localhost:5173`, separate from the owner's `127.0.0.1:5173` save. Physical phone touch input and representative GPU performance still need release testing. The 3D bundle is larger than the original illustrated renderer.
 

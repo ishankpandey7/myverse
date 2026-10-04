@@ -4,6 +4,9 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { makePlanet } from "./celestial";
+import { createSurfacePalette } from "./surfaces";
 import { PLACES, SPAWN, distance, findPath, moveBy } from "../navigation";
 import type { Place, Point } from "../navigation";
 import type { Save } from "../../game";
@@ -88,6 +91,19 @@ function mountExperience(
   host.append(canvas);
   const scene = new T.Scene();
   cleanups.push(() => disposeObject(scene));
+  // Reflections give copper, glass and water shape, without loading a remote HDR file.
+  const environmentScene = new RoomEnvironment(),
+    pmrem = new T.PMREMGenerator(renderer);
+  let environment: T.WebGLRenderTarget;
+  try {
+    environment = pmrem.fromScene(environmentScene, 0.06);
+  } finally {
+    environmentScene.dispose();
+    pmrem.dispose();
+  }
+  scene.environment = environment.texture;
+  scene.environmentIntensity = 0.35;
+  cleanups.push(() => environment.dispose());
   scene.fog = new T.FogExp2("#141d32", 0.006);
   const camera = new T.PerspectiveCamera(40, 1, 0.1, 160);
   camera.position.set(18, 22, 29);
@@ -102,20 +118,21 @@ function mountExperience(
   controls.zoomToCursor = true;
   controls.update();
   controls.saveState();
-  const ambient = new T.HemisphereLight("#c9c5f6", "#657d72", 1.1);
+  const ambient = new T.HemisphereLight("#b6c9dc", "#626a51", 0.75);
   scene.add(ambient);
-  const sun = new T.DirectionalLight("#f8deb9", 2.5);
+  const sun = new T.DirectionalLight("#f4d2a3", 2.8);
   cleanups.push(() => sun.shadow.dispose());
   sun.position.set(-12, 22, 10);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.left = -21;
-  sun.shadow.camera.right = 21;
-  sun.shadow.camera.top = 20;
-  sun.shadow.camera.bottom = -20;
-  sun.shadow.normalBias = 0.04;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -17;
+  sun.shadow.camera.right = 17;
+  sun.shadow.camera.top = 16;
+  sun.shadow.camera.bottom = -16;
+  sun.shadow.normalBias = 0.025;
+  sun.shadow.bias = -0.00015;
   scene.add(sun);
-  const rim = new T.DirectionalLight("#8495ef", 1.5);
+  const rim = new T.DirectionalLight("#86b7cc", 1.7);
   rim.position.set(16, 10, -18);
   scene.add(rim);
   const underglow = new T.DirectionalLight("#90b9cc", 0.8);
@@ -168,22 +185,7 @@ function mountExperience(
     }),
   );
   scene.add(stars);
-  const planet = new T.Group();
-  planet.position.set(0, 4, -18);
-  scene.add(planet);
-  sphere(planet, "#afa5c6", 0, 0, 0, 3.2);
-  const ring = new T.Mesh(
-    new T.TorusGeometry(4.7, 0.18, 4, 90),
-    new T.MeshStandardMaterial({
-      color: "#d6bf9c",
-      roughness: 1,
-      emissive: "#72654d",
-      emissiveIntensity: 0.25,
-    }),
-  );
-  ring.rotation.x = 1.16;
-  ring.rotation.y = 0.4;
-  planet.add(ring);
+  scene.add(makePlanet());
   const moon = sphere(scene, "#fff0c0", 19, 17, -32, 1.65, true);
   moon.castShadow = false;
   const firefliesGeo = new T.BufferGeometry(),
@@ -209,17 +211,36 @@ function mountExperience(
     }),
   );
   scene.add(fireflies);
-  const waterMaterial = new T.ShaderMaterial({
-    transparent: true,
-    uniforms: { time: { value: 0 }, day: { value: 0 } },
-    vertexShader: `varying vec2 vUv; uniform float time; void main(){vUv=uv;vec3 p=position;p.z+=sin(p.x*3.0+time)*.015;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);}`,
-    fragmentShader: `varying vec2 vUv;uniform float time;uniform float day;void main(){float wave=sin(vUv.x*60.0+vUv.y*15.0-time*1.5)*sin(vUv.y*40.0+time);float shine=pow(max(0.0,wave),12.0);vec3 color=mix(vec3(.08,.39,.48),vec3(.36,.72,.73),vUv.y);gl_FragColor=vec4(color+shine*.32+day*.08,.92);}`,
+  const waterTime = { value: 0 };
+  const waterMaterial = new T.MeshPhysicalMaterial({
+    color: "#355c5d",
+    metalness: 0.18,
+    roughness: 0.2,
+    clearcoat: 1,
+    clearcoatRoughness: 0.15,
+    envMapIntensity: 1.3,
   });
-  const pond = new T.Mesh(new T.CircleGeometry(2.42, 64), waterMaterial),
+  waterMaterial.onBeforeCompile = (shader) => {
+    shader.uniforms.time = waterTime;
+    shader.vertexShader =
+      "uniform float time;\n" +
+      shader.vertexShader.replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\ntransformed.z += sin(position.x * 5.0 + time) * cos(position.y * 6.0 - time * .6) * .018;",
+      );
+    shader.fragmentShader =
+      "uniform float time;\n" +
+      shader.fragmentShader.replace(
+        "#include <normal_fragment_begin>",
+        "#include <normal_fragment_begin>\nnormal = normalize(normal + vec3(sin(vViewPosition.x * 7.0 + time) * .045, cos(vViewPosition.y * 9.0 - time) * .045, 0.0));",
+      );
+  };
+  const pond = new T.Mesh(new T.CircleGeometry(2.42, 96), waterMaterial),
     pondPoint = toWorld({ x: 840, y: 620 });
   pond.rotation.x = -Math.PI / 2;
   pond.scale.y = 0.53;
   pond.position.set(pondPoint.x, 0.065, pondPoint.z);
+  pond.receiveShadow = true;
   scene.add(pond);
   const fallMaterial = new T.ShaderMaterial({
     transparent: true,
@@ -227,7 +248,7 @@ function mountExperience(
     side: T.DoubleSide,
     uniforms: { time: { value: 0 } },
     vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-    fragmentShader: `varying vec2 vUv;uniform float time;void main(){float ribbons=.5+.5*sin(vUv.x*48.0+sin(vUv.y*12.0-time*2.0));float flow=.7+.3*sin(vUv.y*80.0+time*6.0);float fade=smoothstep(0.0,.15,vUv.y);gl_FragColor=vec4(mix(vec3(.2,.65,.74),vec3(.65,.93,.91),ribbons),(.35+ribbons*.4)*flow*fade);}`,
+    fragmentShader: `varying vec2 vUv;uniform float time;void main(){float ribbons=.5+.5*sin(vUv.x*48.0+sin(vUv.y*12.0-time*2.0));float flow=.7+.3*sin(vUv.y*80.0+time*6.0);float fade=smoothstep(0.0,.2,vUv.y)*smoothstep(0.0,.2,vUv.x)*(1.0-smoothstep(.8,1.0,vUv.x));gl_FragColor=vec4(mix(vec3(.16,.35,.4),vec3(.56,.73,.72),ribbons),(.35+ribbons*.4)*flow*fade);}`,
   });
   const fallPoint = toWorld({ x: 950, y: 727 }),
     fall = new T.Mesh(new T.PlaneGeometry(0.68, 8.5, 1, 20), fallMaterial);
@@ -240,20 +261,25 @@ function mountExperience(
     new T.Vector3(fallPoint.x - 0.3, 0.05, fallPoint.z - 0.4),
     new T.Vector3(fallPoint.x, 0.05, fallPoint.z),
   ]);
+  const channelMaterial = waterMaterial.clone();
   const channel = new T.Mesh(
     new T.TubeGeometry(outlet, 20, 0.24, 6, false),
-    new T.MeshStandardMaterial({
-      color: "#78bfc6",
-      emissive: "#3b7580",
-      emissiveIntensity: 0.3,
-      roughness: 0.35,
-    }),
+    channelMaterial,
   );
   scene.add(channel);
+  const pondBed = new T.Mesh(
+    new T.CircleGeometry(2.53, 80),
+    createSurfacePalette()("rock", "#9a9681"),
+  );
+  pondBed.rotation.x = -Math.PI / 2;
+  pondBed.scale.y = 0.56;
+  pondBed.position.set(pondPoint.x, 0.02, pondPoint.z);
+  pondBed.receiveShadow = true;
+  scene.add(pondBed);
   const composer = new EffectComposer(renderer);
   cleanups.push(() => composer.dispose());
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new T.Vector2(1, 1), 0.35, 0.7, 1.25);
+  const bloom = new UnrealBloomPass(new T.Vector2(1, 1), 0.2, 0.5, 1.4);
   cleanups.push(() => bloom.dispose());
   composer.addPass(bloom);
   const output = new OutputPass();
@@ -607,7 +633,7 @@ function mountExperience(
     controls.autoRotate = tour && !paused && !reduced.matches;
     controls.autoRotateSpeed = 0.25;
     controls.update(dt);
-    waterMaterial.uniforms.time.value = reduced.matches ? 0 : elapsed;
+    waterTime.value = reduced.matches ? 0 : elapsed;
     fallMaterial.uniforms.time.value = reduced.matches ? 0 : elapsed;
     story.targets.forEach((gem, i) => {
       if (!reduced.matches) {
@@ -744,13 +770,15 @@ function mountExperience(
       );
     },
     sky(day: boolean) {
-      ambient.color.set(day ? "#e2edec" : "#c9c5f6");
-      ambient.intensity = day ? 1.8 : 1.1;
-      sun.color.set(day ? "#fff0c5" : "#f8deb9");
-      sun.intensity = day ? 3 : 2.5;
-      rim.intensity = day ? 0.8 : 1.5;
+      ambient.color.set(day ? "#d7e6e3" : "#b6c9dc");
+      ambient.intensity = day ? 1.15 : 0.75;
+      sun.color.set(day ? "#ffe5b4" : "#f4d2a3");
+      sun.intensity = day ? 3.5 : 2.8;
+      rim.intensity = day ? 0.9 : 1.7;
+      scene.environmentIntensity = day ? 0.55 : 0.35;
       stars.visible = !day;
-      waterMaterial.uniforms.day.value = day ? 1 : 0;
+      waterMaterial.color.set(day ? "#477c74" : "#355c5d");
+      channelMaterial.color.copy(waterMaterial.color);
     },
     eco(value: boolean) {
       eco = value;
