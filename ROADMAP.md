@@ -36,7 +36,8 @@
 - [ ] Free movement inside rooms.
 - [x] Opt-in sound controls and reduced-motion support.
 - [x] Mission/idea title editing, including shared Workshop tasks. Idea search is available in the Observatory.
-- [ ] Archiving, mission search and tags.
+- [x] Mission title search shared between the island journal and Home Base's Active/Completed board, with match counts, clear controls and useful empty states. Adding/renaming a mission and world restore clear the search; it is session-only and grants no XP.
+- [ ] Mission/idea archiving and tags.
 - [x] JSON backup export, previewed restore and previous-world recovery, with version validation and failed-write protection.
 - [x] First-visit guide with replay and browser-local dismissal.
 - [x] Automated tests for progression, migration, editing and restore behavior.
@@ -91,6 +92,8 @@ Free-camera verification: native controls complete two full turns and reach over
 Detailed-art verification: a JSON backup restored the completed Workshop, avatar, decoration and lit constellation with 50 XP; the updated world opened all three rooms, switched Twilight/Daybreak and reached the underside with mouse orbit. Eco and the 393px phone viewport rendered without horizontal overflow. Reload and Classic → 3D retained the same progress and one canvas. Shared texture/shader-map disposal has a regression test. Representative physical phone/GPU performance remains unmeasured; increased geometry, textures and 2048px shadows still need device budgeting.
 
 ## Quality bar
+
+Mission-search verification: browser actions covered trimmed/case-insensitive matches, no results, clear-button keyboard focus, shared journal/room queries, Active/Completed views, mission addition and idea conversion clearing a filter, rename preserving IDs/completion, completion for exactly 50 XP across both views, reload and backup restore. The 393px journal and Home Base search fit without horizontal overflow. All 49 existing regression tests pass; save schema remains v3 and search is excluded from backups.
 
 Focus verification: six timer regression tests bring the suite to 49, covering deadline catch-up, pause/resume, recovery, malformed timer data, duration limits, storage failure and explicit shared-task XP. Browser actions verified unattached/attached sessions, paused and running reload recovery, simulated delayed expiry, explicit mission completion and its completed state after reload. Backup file restore cleared the running timer. The 393px dialog fits without horizontal overflow, long mission titles wrap, Escape returns focus to the opener, action changes keep keyboard focus inside the dialog and reduced motion stops the orbit animation. The timer updates its own component without rerendering the 3D world each second. Physical phone input and long real-world focus sessions remain release checks.
 

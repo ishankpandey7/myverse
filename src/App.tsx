@@ -11,6 +11,7 @@ import { EditableTitle } from "./EditableTitle";
 import { WorldTools } from "./WorldTools";
 import { FocusStudio } from "./FocusStudio";
 import { storeFocus } from "./focus";
+import { MissionSearch } from "./MissionSearch";
 import { collectFragment, lightBeacon, FRAGMENTS } from "./starfall";
 import type { FragmentId } from "./starfall";
 import { renameItem, restoreGame, needsGuide } from "./polish";
@@ -64,6 +65,15 @@ function App() {
   const [newReward, setNewReward] = useState<RewardId | null>(null);
   const [tab, setTab] = useState<"missions" | "ideas">("missions");
   const [drafts, setDrafts] = useState({ missions: "", ideas: "" });
+  const [missionSearch, setMissionSearch] = useState("");
+  const journalEntries =
+    tab === "missions"
+      ? save.missions.filter((mission) =>
+          mission.title
+            .toLowerCase()
+            .includes(missionSearch.trim().toLowerCase()),
+        )
+      : save.ideas;
   const draft = drafts[tab];
   function setDraft(value: string) {
     setDrafts((previous) => ({ ...previous, [tab]: value }));
@@ -88,11 +98,15 @@ function App() {
   }
   function rename(kind: EditableKind, id: string, title: string) {
     updateSave((previous) => renameItem(previous, kind, id, title));
+    if (kind === "missions") setMissionSearch("");
   }
 
   function updateSave(update: (previous: Save) => Save) {
     const next = update(saveRef.current);
     if (next === saveRef.current) return;
+    if (next.missions.length > saveRef.current.missions.length) {
+      setMissionSearch("");
+    }
     saveRef.current = next;
     setSave(next);
     try {
@@ -453,8 +467,16 @@ function App() {
                   +
                 </button>
               </form>
+              {tab === "missions" ? (
+                <MissionSearch
+                  query={missionSearch}
+                  onChange={setMissionSearch}
+                  shown={journalEntries.length}
+                  total={save.missions.length}
+                />
+              ) : null}
               <ul className="entries">
-                {save[tab].map((item) => (
+                {journalEntries.map((item) => (
                   <li key={item.id} className={item.done ? "done" : ""}>
                     <EditableTitle
                       title={item.title}
@@ -491,6 +513,13 @@ function App() {
                   </li>
                 ))}
               </ul>
+              {tab === "missions" &&
+              save.missions.length > 0 &&
+              journalEntries.length === 0 ? (
+                <p className="room-empty">
+                  No missions match. Try another word or clear the search.
+                </p>
+              ) : null}
               {!save[tab].length && (
                 <div className="empty">
                   <span>✧</span>
@@ -545,6 +574,7 @@ function App() {
             setSave(incoming);
             setSaveError("");
             setDrafts({ missions: "", ideas: "" });
+            setMissionSearch("");
             setNotice("");
             setNewReward(null);
             setPlacing(null);
@@ -595,6 +625,8 @@ function App() {
       )}
       {homeOpen && (
         <HomeRoom
+          search={missionSearch}
+          onSearch={setMissionSearch}
           onRename={(id, title) => rename("missions", id, title)}
           save={save}
           draft={drafts.missions}

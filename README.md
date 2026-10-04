@@ -22,6 +22,7 @@ Open the localhost link printed in the terminal. `npm run build` checks TypeScri
 - Follow the character, reset the camera, or enable a slow cinematic orbit. Phone camera framing shows the whole island; zoom in to explore. Eco mode removes postprocessing/shadows and limits pixel density. Classic is the lighter alternative.
 - Navigation routes around buildings, tree trunks, water and island edges. Artwork and movement geometry live separately under `src/world` so the world can grow.
 - Add missions, complete them once, and receive 25 XP each. Every 100 XP raises your level.
+- Search mission titles in the island journal and Home Base's Active/Completed board. Matching ignores case and surrounding spaces; result counts and a clear button help you find your next step. The two views share the search during this session. Adding or renaming a mission, restoring a world or reloading clears it; filters do not change your saved missions or XP.
 - Open the profile button to customise your character's name, outfit, skin tone and hat. The preview and island use the same character artwork.
 - Earn a Wish lantern at 25 XP, Moonflowers at 75 XP and a Stargazer crystal at 150 XP. Island collection lets you place one copy of each in four prepared garden spots, move it, or return it to your collection. Placement does not spend XP. These are ornamental, non-blocking decorations.
 - Capture ideas and turn them into missions.

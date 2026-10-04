@@ -4,12 +4,15 @@ import type { Save, RewardId } from "./game";
 import { AvatarArt, DecorationArt } from "./world/PersonalArt";
 import "./home-room.css";
 import { EditableTitle } from "./EditableTitle";
+import { MissionSearch } from "./MissionSearch";
 
 type Station = "welcome" | "board" | "shelf";
 const positions = { welcome: [420, 460], board: [265, 370], shelf: [570, 390] };
 
 export function HomeRoom({
   save,
+  search,
+  onSearch,
   onRename,
   draft,
   onDraft,
@@ -20,6 +23,8 @@ export function HomeRoom({
   saveError,
 }: {
   save: Save;
+  search: string;
+  onSearch: (value: string) => void;
   onRename: (id: string, title: string) => void;
   draft: string;
   onDraft: (value: string) => void;
@@ -45,7 +50,10 @@ export function HomeRoom({
   const unlocked = unlockedRewards(save);
   const active = save.missions.filter((mission) => !mission.done);
   const completed = save.missions.filter((mission) => mission.done);
-  const missions = filter === "active" ? active : completed;
+  const list = filter === "active" ? active : completed;
+  const missions = list.filter((mission) =>
+    mission.title.toLowerCase().includes(search.trim().toLowerCase()),
+  );
   const point = positions[station];
   return (
     <dialog
@@ -345,6 +353,12 @@ export function HomeRoom({
                   Completed ({completed.length})
                 </button>
               </div>
+              <MissionSearch
+                query={search}
+                onChange={onSearch}
+                shown={missions.length}
+                total={list.length}
+              />
               <ul className="room-missions">
                 {missions.map((mission) => (
                   <li key={mission.id}>
@@ -371,9 +385,11 @@ export function HomeRoom({
               </ul>
               {!missions.length && (
                 <p className="room-empty">
-                  {filter === "active"
-                    ? "A clear board, a little breathing room. Pin a new adventure whenever you’re ready."
-                    : "Your finished adventures will live here. Every small step counts."}
+                  {list.length > 0 && search.trim()
+                    ? "No missions match in this view. Try another word or clear the search."
+                    : filter === "active"
+                      ? "A clear board, a little breathing room. Pin a new adventure whenever you’re ready."
+                      : "Your finished adventures will live here. Every small step counts."}
                 </p>
               )}
             </>
