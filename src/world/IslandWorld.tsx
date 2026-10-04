@@ -129,14 +129,28 @@ export function IslandWorld({
     };
   }, [save, onDiscover, onLightBeacon]);
   useEffect(() => {
-    const fullscreen = () =>
-      setExpanded(
-        document.fullscreenElement === svg.current?.closest("section"),
-      );
+    let resizeFrame = 0;
+    const fullscreen = () => {
+      const active = document.fullscreenElement === svg.current?.closest("section");
+      setExpanded(active);
+      cancelAnimationFrame(resizeFrame);
+      if (active) resizeFrame = requestAnimationFrame(() => {
+        const target = frame.current;
+        if (!target || document.fullscreenElement !== target.closest("section")) return;
+        const bounds = target.getBoundingClientRect();
+        if (!bounds.height) return;
+        const nextAspect = bounds.width / bounds.height;
+        const nextWidth = nextAspect < 1 ? 950 : 1400;
+        setZoom(Math.max(0.5, Math.min(1, nextWidth / Math.max(1400, 900 * nextAspect))));
+        setCenter(HOME_CAMERA);
+        setFollowing(false);
+      });
+    };
     document.addEventListener("fullscreenchange", fullscreen);
     const visibility = () => audio.current?.pause(document.hidden);
     document.addEventListener("visibilitychange", visibility);
     return () => {
+      cancelAnimationFrame(resizeFrame);
       document.removeEventListener("fullscreenchange", fullscreen);
       document.removeEventListener("visibilitychange", visibility);
       audio.current?.close();
@@ -152,13 +166,6 @@ export function IslandWorld({
       aspect,
     };
   }, [zoom, camera.x, camera.y, baseWidth, aspect]);
-  useEffect(() => {
-    if (!expanded) return;
-    // Fullscreen and ResizeObserver can fire in either order. Fit after both settle.
-    setZoom(Math.max(0.5, Math.min(1, baseWidth / Math.max(1400, 900 * aspect))));
-    setCenter(HOME_CAMERA);
-    setFollowing(false);
-  }, [expanded, aspect, baseWidth]);
   useEffect(() => {
     const target = frame.current,
       map = svg.current;
