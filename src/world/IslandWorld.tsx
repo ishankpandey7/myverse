@@ -8,6 +8,13 @@ import type { Camera } from "./camera";
 import { PLOTS, REWARDS } from "../game";
 import type { Avatar, Save, RewardId, PlotId } from "../game";
 import "./world.css";
+import "./starfall.css";
+import { Atmosphere, StarfallArt } from "./StarfallArt";
+import { StarfallQuest } from "./StarfallQuest";
+import { BEACON, FRAGMENTS, canLightBeacon } from "../starfall";
+import type { FragmentId } from "../starfall";
+import { createSoundscape } from "./soundscape";
+import { ChapterCelebration } from "./ChapterCelebration";
 
 const directions: Record<string, Point> = {
   w: { x: 0, y: -1 },
@@ -25,6 +32,9 @@ const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, n));
 
 export function IslandWorld({
+  save,
+  onDiscover,
+  onLightBeacon,
   onVisit,
   avatar,
   decorations,
@@ -33,6 +43,9 @@ export function IslandWorld({
   onPlace,
   onCancelPlacement,
 }: {
+  save: Save;
+  onDiscover: (id: FragmentId) => void;
+  onLightBeacon: () => void;
   onVisit: (place: Place) => void;
   avatar: Avatar;
   decorations: Save["decorations"];
@@ -48,6 +61,16 @@ export function IslandWorld({
   const route = useRef<Point[]>([]);
   const [routePreview, setRoutePreview] = useState<Point[]>([]);
   const pending = useRef<Place | null>(null);
+  const pendingDiscovery = useRef<FragmentId | "beacon" | null>(null);
+  const [sky, setSky] = useState<"moonlight" | "dawn">("moonlight");
+  const [expanded, setExpanded] = useState(false);
+  const [sound, setSound] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
+  const audio = useRef<ReturnType<typeof createSoundscape> | null>(null);
+  const [discoveryMessage, setDiscoveryMessage] = useState("");
+  const discoveryHandler = useRef<(id: FragmentId | "beacon") => void>(
+    () => {},
+  );
   const placementMode = useRef(Boolean(placing || paused));
   const keys = useRef(new Set<string>());
   const visit = useRef(onVisit);
@@ -76,6 +99,52 @@ export function IslandWorld({
   );
 
   useLayoutEffect(() => {
+    discoveryHandler.current = (id) => {
+      if (id === "beacon") {
+        if (save.starfall?.beaconLit) {
+          setDiscoveryMessage(
+            "A light made from your small victories. This one is yours.",
+          );
+        } else if (canLightBeacon(save)) {
+          onLightBeacon();
+          audio.current?.chime();
+          setCelebrating(true);
+          setDiscoveryMessage(
+            "The beacon is awake. Look up—your island has a new sky.",
+          );
+        } else {
+          setDiscoveryMessage(
+            save.starfall?.fragments.length === 3
+              ? "One real-world victory will awaken it. Complete a mission in Home Base, then return."
+              : "Three fallen fragments belong here. Find them around the island, then return.",
+          );
+        }
+      } else if (!save.starfall?.fragments.includes(id)) {
+        onDiscover(id);
+        audio.current?.chime();
+        setDiscoveryMessage(`${FRAGMENTS[id].name}: ${FRAGMENTS[id].memory}`);
+      } else {
+        setDiscoveryMessage(FRAGMENTS[id].memory);
+      }
+    };
+  }, [save, onDiscover, onLightBeacon]);
+  useEffect(() => {
+    const fullscreen = () =>
+      setExpanded(
+        document.fullscreenElement === svg.current?.closest("section"),
+      );
+    document.addEventListener("fullscreenchange", fullscreen);
+    const visibility = () => audio.current?.pause(document.hidden);
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      document.removeEventListener("fullscreenchange", fullscreen);
+      document.removeEventListener("visibilitychange", visibility);
+      audio.current?.close();
+      audio.current = null;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
     liveCamera.current = {
       zoom,
       center: { x: camera.x, y: camera.y },
@@ -83,6 +152,13 @@ export function IslandWorld({
       aspect,
     };
   }, [zoom, camera.x, camera.y, baseWidth, aspect]);
+  useEffect(() => {
+    if (!expanded) return;
+    // Fullscreen and ResizeObserver can fire in either order. Fit after both settle.
+    setZoom(Math.max(0.5, Math.min(1, baseWidth / Math.max(1400, 900 * aspect))));
+    setCenter(HOME_CAMERA);
+    setFollowing(false);
+  }, [expanded, aspect, baseWidth]);
   useEffect(() => {
     const target = frame.current,
       map = svg.current;
@@ -106,19 +182,22 @@ export function IslandWorld({
     visit.current = onVisit;
   }, [onVisit]);
   useEffect(() => {
-    placementMode.current = Boolean(placing || paused);
-    if (placing || paused) {
+    placementMode.current = Boolean(placing || paused || celebrating);
+    if (placing || paused || celebrating) {
       route.current = [];
       pending.current = null;
+      pendingDiscovery.current = null;
       keys.current.clear();
     }
-  }, [placing, paused]);
+  }, [placing, paused, celebrating]);
   useEffect(() => {
     const target = frame.current;
     if (!target) return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry.contentRect.height > 0)
-        setAspect(entry.contentRect.width / entry.contentRect.height);
+      if (entry.contentRect.height > 0) {
+        const nextAspect = entry.contentRect.width / entry.contentRect.height;
+        setAspect(nextAspect);
+      }
     });
     observer.observe(target);
     return () => observer.disconnect();
@@ -181,6 +260,9 @@ export function IslandWorld({
         }
         if (!route.current.length) {
           setDestination(null);
+          const discovery = pendingDiscovery.current;
+          pendingDiscovery.current = null;
+          if (discovery) discoveryHandler.current(discovery);
           const place = pending.current;
           pending.current = null;
           if (place) {
@@ -208,7 +290,8 @@ export function IslandWorld({
   }, []);
 
   function travel(target: Point, place: Place | null = null) {
-    if (placing) return;
+    if (placing || paused) return;
+    pendingDiscovery.current = null;
     const path = findPath(positionRef.current, target);
     if (!path.length) {
       setHint("Stay on the island — choose a spot on the grass or a path.");
@@ -229,9 +312,28 @@ export function IslandWorld({
   function stop() {
     route.current = [];
     pending.current = null;
+    pendingDiscovery.current = null;
     keys.current.clear();
     setDestination(null);
     setHint("Taking a little pause.");
+  }
+  function approachDiscovery(id: FragmentId | "beacon") {
+    if (placing || paused) return;
+    const point = id === "beacon" ? BEACON : FRAGMENTS[id];
+    if (distance(positionRef.current, point) < 48) {
+      stop();
+      discoveryHandler.current(id);
+    } else {
+      travel(point);
+      if (route.current.length) {
+        pendingDiscovery.current = id;
+        setHint(
+          id === "beacon"
+            ? "Following the path to the Starfall beacon…"
+            : FRAGMENTS[id].clue,
+        );
+      }
+    }
   }
   function keyDown(event: KeyboardEvent<SVGSVGElement>) {
     if (placing) {
@@ -258,6 +360,7 @@ export function IslandWorld({
       keys.current.add(key);
       route.current = [];
       pending.current = null;
+      pendingDiscovery.current = null;
       setDestination(null);
     } else if (key === "escape") {
       event.preventDefault();
@@ -271,7 +374,8 @@ export function IslandWorld({
   function pointerDown(event: PointerEvent<SVGSVGElement>) {
     if (event.button !== 0) return;
     const target = event.target as Element;
-    if (target.closest("[data-place], [data-plot-choice]")) return;
+    if (target.closest("[data-place], [data-plot-choice], [data-discovery]"))
+      return;
     svg.current?.focus({ preventScroll: true });
     drag.current = {
       id: event.pointerId,
@@ -316,27 +420,91 @@ export function IslandWorld({
   return (
     <section
       id="island-explorer"
-      className="explorer"
+      className={`explorer sky-${sky} ${save.starfall?.beaconLit ? "beacon-awake" : ""}`}
       aria-label="Moonhollow island"
     >
       <div className="explorer-heading">
         <div>
-          <p className="eyebrow">YOUR LITTLE CORNER OF THE COSMOS</p>
+          <p className="eyebrow">A WORLD THAT GROWS WITH YOU</p>
           <h1>
             Moonhollow <em>Island</em>
           </h1>
         </div>
         <span className="world-badge">
-          <i /> FREE TO EXPLORE
+          <i />{" "}
+          {save.starfall?.beaconLit ? "BEACON AWAKENED" : "STARFALL CHAPTER"}
         </span>
+      </div>
+      <div className="island-experience-bar">
+        <div
+          className="sky-controls"
+          role="group"
+          aria-label="Island atmosphere"
+        >
+          <button
+            aria-pressed={sky === "moonlight"}
+            onClick={() => setSky("moonlight")}
+          >
+            ☾ Moonlight
+          </button>
+          <button aria-pressed={sky === "dawn"} onClick={() => setSky("dawn")}>
+            ☀ Dawn
+          </button>
+        </div>
+        <div className="experience-controls">
+          <button
+            aria-pressed={sound}
+            onClick={() => {
+              if (audio.current) {
+                audio.current.close();
+                audio.current = null;
+                setSound(false);
+              } else
+                try {
+                  audio.current = createSoundscape();
+                  setSound(true);
+                } catch {
+                  setHint(
+                    "Audio is unavailable in this browser. You can keep exploring.",
+                  );
+                }
+            }}
+          >
+            {sound ? "♫ Sound on" : "♫ Sound off"}
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                if (expanded) await document.exitFullscreen();
+                else await svg.current?.closest("section")?.requestFullscreen();
+              } catch {
+                setHint(
+                  "Fullscreen is unavailable here. You can still zoom and explore.",
+                );
+              }
+            }}
+            aria-label={
+              expanded ? "Leave immersive mode" : "Enter immersive mode"
+            }
+          >
+            {expanded ? "↙ Return" : "⛶ Immerse"}
+          </button>
+        </div>
       </div>
       <div
         className={`world-frame ${placing ? "placement-mode" : ""}`}
         ref={frame}
       >
         <div className="map-topline">
-          <span>✧ &nbsp; THE FIRST CHAPTER</span>
-          <span>Home is a place you grow.</span>
+          <span>
+            ✧ &nbsp; MOONHOLLOW /{" "}
+            {sky === "moonlight" ? "AFTER HOURS" : "FIRST LIGHT"}
+          </span>
+          <span>
+            {save.starfall?.beaconLit
+              ? "Every little victory leaves a light."
+              : "Something fell from the sky tonight."}
+          </span>
         </div>
         <svg
           ref={svg}
@@ -356,6 +524,7 @@ export function IslandWorld({
           }}
         >
           <Terrain />
+          <Atmosphere lit={!!save.starfall?.beaconLit} />
           <g className="path-indicator" aria-hidden="true">
             {destination && !placing && (
               <>
@@ -453,6 +622,11 @@ export function IslandWorld({
               </g>
             );
           })}
+          <StarfallArt
+            journey={save.starfall}
+            onApproach={approachDiscovery}
+            disabled={!!placing || paused}
+          />
           {placing &&
             (Object.keys(PLOTS) as PlotId[]).map((plot, index) => {
               const occupied = Object.entries(decorations).some(
@@ -493,6 +667,19 @@ export function IslandWorld({
               );
             })}
         </svg>
+        <div className="island-vignette" aria-hidden="true" />
+        {discoveryMessage && (
+          <div className="discovery-toast" role="status">
+            <span aria-hidden="true">✧</span>
+            <p>{discoveryMessage}</p>
+            <button
+              aria-label="Dismiss discovery message"
+              onClick={() => setDiscoveryMessage("")}
+            >
+              ×
+            </button>
+          </div>
+        )}
         {placing && (
           <div className="placement-panel">
             <div className="placement-title">
@@ -591,6 +778,17 @@ export function IslandWorld({
           )}
         </div>
       </div>
+      <StarfallQuest save={save} onApproach={approachDiscovery} />
+      {celebrating && (
+        <ChapterCelebration
+          onClose={() => {
+            setCelebrating(false);
+            requestAnimationFrame(() =>
+              svg.current?.focus({ preventScroll: true }),
+            );
+          }}
+        />
+      )}
       <div className="explorer-footer">
         <p role="status">{hint}</p>
         <nav aria-label="Island destinations">

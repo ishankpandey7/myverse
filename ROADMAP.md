@@ -40,6 +40,8 @@
 - [x] JSON backup export, previewed restore and previous-world recovery, with version validation and failed-write protection.
 - [x] First-visit guide with replay and browser-local dismissal.
 - [x] Automated tests for progression, migration, editing and restore behavior.
+- [x] Starfall Chapter: three reachable fragments and their memories, a mission-gated beacon, permanent Origin constellation and chapter celebration. Exploration does not duplicate mission XP.
+- [x] Moonlight/Dawn atmosphere, aurora, fireflies, lamplight, opt-in synthesised sound and immersive fullscreen; new animations respect reduced motion.
 
 ## Checkpoint 3: ideas become projects
 
@@ -61,6 +63,18 @@
 ## Later, only if useful
 
 AI planning buddy, richer islands, possible 3D exploration, friends challenges and calendar integrations. Keep game data separate from artwork so later rendering changes can preserve progress. API-backed features need a separate service setup and cost decision.
+
+## Bigger release direction — proposed, not implemented
+
+MyVerse becomes a personal universe shaped by the things its owner actually does. Build depth around that promise in verified milestones:
+
+1. **A world worth returning to:** richer island stories, satisfying unlocks, distinctive artwork and accessibility. Starfall is the first complete example of explore → real mission → visible world change.
+2. **Useful daily play:** mission search/organisation, a calm focus ritual, optional habits and weekly reflection. No punishment for breaks; avoid turning every action into a grind.
+3. **Projects leave a mark:** project-specific monuments, a Skill Garden and an achievement gallery. Completed real tasks develop the world rather than awarding duplicate XP.
+4. **A reliable public release:** Supabase accounts, ownership policies, save migration/conflict recovery, Vercel previews and deployment, phone testing and performance budgets.
+5. **Expand after the core works:** additional explorable islands, optional 3D rendering and opt-in shared challenges. Decide scope and service costs before adding cloud or AI dependencies.
+
+Starfall verification: all three fragments collected through browser walking, a real mission completed once for 25 XP, beacon/celebration unlocked and persisted through reload. Fullscreen, sound toggles, Dawn/Moonlight and reduced-motion styles checked. Mobile viewport checked at 393px without horizontal overflow; physical touch devices remain part of release testing. Existing backups/recovery and corrupt-story protection have regression tests.
 
 ## Quality bar
 

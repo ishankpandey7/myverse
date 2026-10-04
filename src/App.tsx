@@ -9,6 +9,8 @@ import { ObservatoryRoom } from "./ObservatoryRoom";
 import { Workshop } from "./Workshop";
 import { EditableTitle } from "./EditableTitle";
 import { WorldTools } from "./WorldTools";
+import { collectFragment, lightBeacon, FRAGMENTS } from "./starfall";
+import type { FragmentId } from "./starfall";
 import { renameItem, restoreGame, needsGuide } from "./polish";
 import type { EditableKind } from "./polish";
 import {
@@ -195,6 +197,11 @@ function App() {
     setNotice("Your spark has a workbench. Add its first milestone.");
   }
 
+  function discover(id: FragmentId) {
+    updateSave((previous) => collectFragment(previous, id));
+    setNotice(FRAGMENTS[id].memory);
+  }
+
   function makeMission(id: string) {
     updateSave((previous) => promoteIdea(previous, id));
     setTab("missions");
@@ -211,7 +218,7 @@ function App() {
           </span>
         </a>
         <div className="chapter">
-          CHAPTER 01 <span>·</span> The beginning
+          CHAPTER 01 <span>·</span> Starfall
         </div>
         <button
           className="profile profile-button"
@@ -254,6 +261,9 @@ function App() {
       </nav>
       <main key={restoreEpoch}>
         <IslandWorld
+          save={save}
+          onDiscover={discover}
+          onLightBeacon={() => updateSave(lightBeacon)}
           onVisit={enterPlace}
           avatar={save.avatar}
           decorations={save.decorations}
@@ -277,8 +287,18 @@ function App() {
               <span className="eyebrow">YOUR JOURNEY</span>
               <span className="pill">LEVEL {level}</span>
             </div>
-            <h2>A new beginning</h2>
-            <p>Grow at your own pace.</p>
+            <h2>
+              {save.starfall?.beaconLit
+                ? "A light of your own"
+                : level > 1
+                  ? "Finding your rhythm"
+                  : "A new beginning"}
+            </h2>
+            <p>
+              {save.starfall?.beaconLit
+                ? "Small victories. A brighter world."
+                : "Grow at your own pace."}
+            </p>
             <div className="xp-label">
               <span>{xp % 100} / 100 XP</span>
               <span>Next level ✧</span>
@@ -433,12 +453,20 @@ function App() {
                         {item.done ? "✓ Done" : "+25 XP"}
                       </button>
                     ) : (
-                      <div className="idea-actions"><button
-                        onClick={() => makeMission(item.id)}
-                        aria-label={`Turn ${item.title} into a mission`}
-                      >
-                        Mission →
-                      </button><button onClick={() => makeProject(item.id)} aria-label={`Turn ${item.title} into a project`}>Project ↗</button></div>
+                      <div className="idea-actions">
+                        <button
+                          onClick={() => makeMission(item.id)}
+                          aria-label={`Turn ${item.title} into a mission`}
+                        >
+                          Mission →
+                        </button>
+                        <button
+                          onClick={() => makeProject(item.id)}
+                          aria-label={`Turn ${item.title} into a project`}
+                        >
+                          Project ↗
+                        </button>
+                      </div>
                     )}
                   </li>
                 ))}

@@ -55,14 +55,14 @@ export function WorldTools({
     {
       symbol: "✧",
       title: "Give your ideas a home.",
-      body: "Visit the Observatory to capture a thought. Each idea becomes a star. Open one and turn it into a mission when you’re ready.",
+      body: "Visit the Observatory to capture a thought. Each idea becomes a star. Open one and turn it into a mission or a bigger project when you’re ready.",
       tip: "Use WASD or arrow keys on the map. Press E near a building to enter.",
     },
     {
       symbol: "⚒",
       title: "Build something bigger.",
       body: "The Workshop turns projects into milestones and small tasks. Finish them to watch your model grow. Rename titles with the pencil whenever plans change.",
-      tip: "Progress saves in this browser. Download backups regularly; cloud sync comes later.",
+      tip: "Try the Starfall story below the island: find three fragments and complete one real-life mission to awaken your beacon. Download backups to keep your world safe.",
     },
   ];
   const slide = slides[step];

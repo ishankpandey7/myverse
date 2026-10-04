@@ -1,0 +1,481 @@
+/* Starfall's atmosphere stays outside the save model and collision geometry. */
+.app-shell {
+  background: radial-gradient(ellipse at 15% 12%, #22383a33, transparent 45%);
+}
+.explorer-heading h1 {
+  font-size: clamp(32px, 3.3vw, 49px);
+  letter-spacing: -1.7px;
+}
+.explorer-heading h1 em {
+  font-size: inherit;
+  color: #b6d6cb;
+}
+.explorer-heading .eyebrow {
+  color: #a3bdb8;
+}
+.island-experience-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+.sky-controls,
+.experience-controls {
+  display: flex;
+  gap: 5px;
+}
+.sky-controls {
+  border: 1px solid #d4dbc61b;
+  border-radius: 30px;
+  padding: 4px;
+  background: #181f2c;
+}
+.island-experience-bar button {
+  min-height: 44px;
+  font-size: 11px;
+  border: 0;
+  border-radius: 24px;
+  padding: 10px 16px;
+  background: transparent;
+  color: #a9b7bc;
+}
+.sky-controls button[aria-pressed="true"] {
+  color: #e7e5d3;
+  background: #3a4b4a;
+  box-shadow: 0 2px 10px #0002;
+}
+.experience-controls button:hover {
+  background: #b0cab714;
+  color: #f1e4c9;
+}
+.experience-controls button[aria-pressed="true"] {
+  color: #b6dfc5;
+}
+.sky-moonlight .world-frame {
+  background:
+    radial-gradient(ellipse at 45% 65%, #344e594d, transparent 55%),
+    radial-gradient(ellipse at 60% 10%, #45466f50, transparent 60%), #0e1c2b;
+  border-color: #8aada340;
+  box-shadow:
+    0 20px 65px #0003,
+    inset 0 0 90px #28444722;
+}
+.sky-dawn .world-frame {
+  background:
+    radial-gradient(ellipse at 18% 10%, #d2a0797d, transparent 70%),
+    linear-gradient(155deg, #555b71, #314d57 55%, #263642);
+  border-color: #e0c59b44;
+}
+.sky-dawn .world-map {
+  filter: sepia(0.1) saturate(1.07) brightness(1.12);
+}
+.world-frame {
+  transition:
+    background 0.5s,
+    border-color 0.5s;
+}
+.island-vignette {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 80px #07121d65;
+}
+.sky-dawn .island-vignette {
+  box-shadow: inset 0 0 60px #9b816022;
+}
+.sky-dawn .map-topline {
+  color: #f3e1c3;
+}
+.sky-dawn .map-topline > span:last-child {
+  color: #e5d4b8;
+}
+.sky-dawn .cosmic-atmosphere {
+  opacity: 0.48;
+}
+.beacon-awake .world-frame {
+  border-color: #b8e8c762;
+}
+.aurora-ribbon {
+  animation: aurora-drift 16s ease-in-out infinite alternate;
+  transform-origin: 700px 130px;
+}
+.aurora-ribbon.second {
+  animation-delay: -8s;
+  opacity: 0.6;
+}
+.cosmic-mote {
+  animation: mote-glow 5s ease-in-out infinite;
+}
+.shooting-star {
+  opacity: 0;
+  animation: shooting 15s ease-out infinite;
+}
+.star-fragment,
+.star-beacon {
+  cursor: pointer;
+  outline: none;
+}
+.fragment-float {
+  animation: fragment-bob 4s ease-in-out infinite;
+}
+.star-fragment.found .fragment-float {
+  opacity: 0.3;
+  animation: none;
+}
+.star-fragment.found .fragment-ring {
+  opacity: 0.2;
+}
+.fragment-ring {
+  transition: stroke-width 0.2s;
+}
+.star-fragment:hover .fragment-ring,
+.star-fragment:focus-visible .fragment-ring {
+  stroke-width: 4;
+}
+.star-beacon:hover > ellipse,
+.star-beacon:focus-visible > ellipse {
+  stroke-width: 5;
+}
+.star-beacon.lit > path {
+  filter: drop-shadow(0 0 9px #a9f3d1);
+}
+.discovery-toast {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 65px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: min(480px, calc(100% - 130px));
+  border: 1px solid #c8d7bd55;
+  border-radius: 13px;
+  padding: 16px;
+  background: #152a2ff5;
+  box-shadow: 0 12px 35px #0005;
+}
+.discovery-toast > span {
+  color: #f2d79e;
+  font-size: 27px;
+}
+.discovery-toast p {
+  color: #d8e2d7;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.discovery-toast button {
+  margin-left: auto;
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  font-size: 24px;
+  color: #b6c4bd;
+  width: 44px;
+  height: 44px;
+}
+.starfall-quest {
+  margin-top: 20px;
+  border: 1px solid #99b4a72e;
+  border-radius: 17px;
+  background: linear-gradient(120deg, #263a3d80, #1b2431c4);
+  padding: 23px;
+}
+.quest-intro {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.quest-emblem {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 53px;
+  height: 53px;
+  border: 1px solid #bbcdb949;
+  border-radius: 50%;
+  color: #e8d3a5;
+  background: radial-gradient(circle, #a4b79820, transparent);
+  font-size: 30px;
+}
+.quest-intro h2 {
+  margin: 7px 0;
+  font-size: 23px;
+  color: #f1e4cf;
+}
+.quest-intro > div > p:last-child {
+  color: #abbeba;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.quest-intro .eyebrow {
+  font-size: 8px;
+  color: #a6c3b7;
+}
+.quest-count {
+  margin-left: auto;
+  color: #cbd5bc;
+  font-size: 9px;
+  white-space: nowrap;
+  letter-spacing: 1px;
+}
+.quest-stops {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 22px;
+}
+.quest-stops button {
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 10px;
+  border: 1px solid #b5c4b21b;
+  border-radius: 10px;
+  background: #0a19272e;
+  color: #cfd7cf;
+}
+.quest-stops button:hover {
+  border-color: #bddcc47d;
+  background: #b3d5bc0e;
+}
+.quest-stop-icon {
+  color: #ccbda2;
+  font-size: 11px;
+}
+.quest-stops b {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.quest-stops small {
+  display: block;
+  font-size: 9px;
+  line-height: 1.5;
+  color: #93aaa5;
+  margin-top: 4px;
+}
+.quest-stops button.discovered {
+  border-color: #a9ddbd35;
+}
+.quest-stops button.discovered .quest-stop-icon {
+  color: #b6dfc1;
+}
+.quest-stops .beacon-quest-button {
+  border-color: #dcc89f35;
+  background: #c0af7c09;
+}
+.chapter-complete {
+  border-color: #d1d8aa4d;
+}
+.chapter-celebration {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100svh - 32px);
+  overflow: auto;
+  border: 1px solid #c4dfb763;
+  border-radius: 24px;
+  padding: 32px;
+  text-align: center;
+  color: #edf0db;
+  background: radial-gradient(ellipse at 50% 30%, #304b45, #192b33 65%);
+  box-shadow: 0 30px 120px #0008;
+}
+.chapter-celebration::backdrop {
+  background: #061323bd;
+  backdrop-filter: blur(5px);
+}
+.chapter-celebration .eyebrow {
+  color: #cbd7b3;
+  font-size: 9px;
+}
+.celebration-sigil {
+  width: 250px;
+  max-width: 100%;
+  margin: 5px auto;
+}
+.celebration-sigil svg {
+  display: block;
+  width: 100%;
+}
+.sigil-star {
+  transform-origin: 140px 110px;
+  animation: sigil-breathe 3s ease-in-out infinite;
+}
+.chapter-celebration h2 {
+  font-size: 29px;
+  line-height: 1.35;
+}
+.chapter-celebration > p:not(.eyebrow) {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #b8c9c1;
+  margin: 18px 0;
+}
+.celebration-reward {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  padding: 17px 10px;
+  border-block: 1px solid #bbd0b328;
+  margin: 20px 0;
+  text-align: left;
+}
+.celebration-reward > span {
+  font-size: 26px;
+  color: #e5cea3;
+}
+.celebration-reward b {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+}
+.celebration-reward small {
+  display: block;
+  font-size: 10px;
+  color: #a8bfb6;
+  margin-top: 5px;
+}
+.chapter-celebration .primary-action {
+  width: 100%;
+}
+@keyframes sigil-breathe {
+  50% {
+    opacity: 0.6;
+    transform: scale(0.93);
+  }
+}
+.explorer:fullscreen {
+  display: flex;
+  flex-direction: column;
+  background: #101b26;
+  padding: 18px 28px;
+  overflow: auto;
+}
+.explorer:fullscreen .explorer-heading {
+  margin-bottom: 13px;
+}
+.explorer:fullscreen .explorer-heading h1 {
+  font-size: 30px;
+}
+.explorer:fullscreen .world-frame {
+  flex: 1;
+  min-height: 300px;
+  height: auto;
+}
+.explorer:fullscreen .starfall-quest {
+  padding: 12px 18px;
+  margin-top: 12px;
+}
+.explorer:fullscreen .quest-intro {
+  display: none;
+}
+.explorer:fullscreen .quest-stops {
+  margin-top: 0;
+}
+.explorer:fullscreen .explorer-footer {
+  margin-top: 4px;
+}
+@keyframes aurora-drift {
+  to {
+    transform: translateX(40px) scaleY(1.12);
+    opacity: 0.55;
+  }
+}
+@keyframes mote-glow {
+  50% {
+    opacity: 0.2;
+    transform: translateY(-8px);
+  }
+}
+@keyframes fragment-bob {
+  50% {
+    transform: translateY(-7px);
+  }
+}
+@keyframes shooting {
+  0%,
+  82%,
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  84% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0;
+    transform: translate(-400px, 170px);
+  }
+}
+@media (max-width: 1150px) {
+  .quest-stops {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .quest-count {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .island-experience-bar {
+    gap: 5px;
+  }
+  .island-experience-bar button {
+    padding: 10px 11px;
+    font-size: 10px;
+  }
+  .experience-controls {
+    gap: 0;
+  }
+  .starfall-quest {
+    padding: 17px;
+  }
+  .quest-emblem {
+    width: 41px;
+    height: 41px;
+    font-size: 25px;
+  }
+  .quest-intro {
+    align-items: flex-start;
+    gap: 11px;
+  }
+  .quest-intro h2 {
+    font-size: 20px;
+  }
+  .discovery-toast {
+    top: 65px;
+    width: calc(100% - 88px);
+    left: 12px;
+    transform: none;
+    padding: 10px;
+    gap: 8px;
+  }
+  .discovery-toast p {
+    font-size: 11px;
+  }
+  .explorer:fullscreen {
+    padding: 12px;
+  }
+  .explorer:fullscreen .quest-stops {
+    gap: 5px;
+  }
+  .explorer:fullscreen .quest-stops button {
+    padding: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aurora-ribbon,
+  .cosmic-mote,
+  .shooting-star,
+  .fragment-float,
+  .sigil-star {
+    animation: none;
+  }
+  .world-frame {
+    transition: none;
+  }
+}

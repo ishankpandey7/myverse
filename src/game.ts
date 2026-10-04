@@ -1,3 +1,5 @@
+import { validStarfall } from "./starfall.ts";
+import type { Starfall } from "./starfall";
 export type Entry = { id: string; title: string; done: boolean };
 export const OUTFITS = {
   twilight: {
@@ -69,6 +71,7 @@ export type Project = {
 };
 export type Save = {
   version: 3;
+  starfall?: Starfall;
   projects: Project[];
   missions: Entry[];
   ideas: Entry[];
@@ -162,8 +165,20 @@ export function decodeSave(raw: string): Save {
     throw new Error(
       "The saved projects could not be read. Their original data has been kept.",
     );
+  if (
+    value.starfall !== undefined &&
+    (!validStarfall(value.starfall) ||
+      (value.starfall.beaconLit &&
+        !value.missions.some((mission) => mission.done)))
+  )
+    throw new Error(
+      "The saved island story could not be read. Its original data has been kept.",
+    );
   return {
     version: 3,
+    ...(value.starfall !== undefined
+      ? { starfall: value.starfall as Starfall }
+      : {}),
     projects,
     missions: value.missions,
     ideas: value.ideas,
@@ -387,10 +402,17 @@ export function projectProgress(save: Save, project: Project) {
 }
 
 // Optional archive state keeps existing v3 worlds compatible.
-export function archiveProject(save: Save, id: string, archived: boolean): Save {
+export function archiveProject(
+  save: Save,
+  id: string,
+  archived: boolean,
+): Save {
   const project = save.projects.find((p) => p.id === id);
   if (!project || !!project.archived === archived) return save;
-  return { ...save, projects: save.projects.map((p) => p.id === id ? { ...p, archived } : p) };
+  return {
+    ...save,
+    projects: save.projects.map((p) => (p.id === id ? { ...p, archived } : p)),
+  };
 }
 export function projectFromIdea(save: Save, id: string): Save {
   const idea = save.ideas.find((item) => item.id === id);
