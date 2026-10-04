@@ -64,6 +64,43 @@ test("living Workshop grows from shared mission completion without mutating save
   assert.equal(totalXP(completeMission(save, "first")), 50);
 });
 
+test("island grass and cliffs form a closed surface without underside cracks", () => {
+  const terrain = makeTerrain();
+  terrain.group.updateMatrixWorld(true);
+  const edges = new Map();
+  for (const mesh of [
+    terrain.top,
+    terrain.group.getObjectByName("island-cliff"),
+  ]) {
+    const positions = mesh.geometry.getAttribute("position"),
+      indices = mesh.geometry.getIndex();
+    const vertex = (index) =>
+      new T.Vector3()
+        .fromBufferAttribute(positions, index)
+        .applyMatrix4(mesh.matrixWorld)
+        .toArray()
+        .map((v) => Math.round(v * 1e4))
+        .join(",");
+    const count = indices?.count ?? positions.count;
+    for (let i = 0; i < count; i += 3) {
+      const triangle = [0, 1, 2].map((offset) =>
+        vertex(indices ? indices.getX(i + offset) : i + offset),
+      );
+      for (let side = 0; side < 3; side++) {
+        const key = [triangle[side], triangle[(side + 1) % 3]].sort().join("|");
+        edges.set(key, (edges.get(key) ?? 0) + 1);
+      }
+    }
+  }
+  for (const [edge, count] of edges)
+    assert.equal(
+      count,
+      2,
+      `every surface edge joins exactly two faces: ${edge}`,
+    );
+  disposeObject(terrain.group);
+});
+
 test("replacing a model releases shared GPU resources once", () => {
   const geometry = new T.BoxGeometry(),
     material = new T.MeshStandardMaterial();

@@ -10,6 +10,7 @@ import type { Save } from "../../game";
 import { BEACON, FRAGMENTS } from "../../starfall";
 import type { FragmentId } from "../../starfall";
 import { toIsland, toWorld } from "./coordinates";
+import { configureFreeCamera, setCameraPan } from "./camera-controls";
 import {
   makeTerrain,
   makeHome,
@@ -81,7 +82,7 @@ function mountExperience(
   canvas.setAttribute("role", "application");
   canvas.setAttribute(
     "aria-label",
-    "3D Moonhollow island. Click to walk; drag to orbit; scroll or pinch to zoom. WASD or arrow keys to move, E near a building to enter.",
+    "3D Moonhollow island. Click to walk; drag to orbit 360 degrees. Right-drag, Shift-drag or Pan camera to move the view; scroll or pinch to zoom. WASD or arrow keys to move, E near a building to enter.",
   );
   canvas.dataset.testid = "three-world";
   host.append(canvas);
@@ -97,11 +98,8 @@ function mountExperience(
   controls.dampingFactor = 0.065;
   controls.minDistance = 10;
   controls.maxDistance = 60;
-  controls.minPolarAngle = 0.35;
-  controls.maxPolarAngle = 1.38;
+  configureFreeCamera(controls);
   controls.zoomToCursor = true;
-  controls.screenSpacePanning = false;
-  controls.maxTargetRadius = 16;
   controls.update();
   controls.saveState();
   const ambient = new T.HemisphereLight("#c9c5f6", "#657d72", 1.1);
@@ -120,7 +118,10 @@ function mountExperience(
   const rim = new T.DirectionalLight("#8495ef", 1.5);
   rim.position.set(16, 10, -18);
   scene.add(rim);
-  const { group: terrain } = makeTerrain();
+  const underglow = new T.DirectionalLight("#90b9cc", 0.8);
+  underglow.position.set(-6, -12, 8);
+  scene.add(underglow);
+  const { group: terrain, top: ground } = makeTerrain();
   scene.add(terrain, makeHome(), makeObservatory());
   let save = initial,
     projectId = save.projects.find((p) => !p.archived)?.id ?? "";
@@ -301,6 +302,7 @@ function mountExperience(
     follow = false,
     eco = false,
     tour = false,
+    panning = false,
     dead = false,
     last = 0,
     elapsed = 0,
@@ -359,7 +361,6 @@ function mountExperience(
       callbacks.discover(id);
     } else go(point, () => callbacks.discover(id));
   }
-  const rayPlane = new T.Plane(new T.Vector3(0, 1, 0), 0);
   let down: { x: number; y: number; id: number; cancel: boolean } | null = null;
   const pointers = new Set<number>();
   const pointerDown = (e: PointerEvent) => {
@@ -381,6 +382,10 @@ function mountExperience(
       e.button !== 0 ||
       start.cancel ||
       paused ||
+      panning ||
+      e.shiftKey ||
+      e.ctrlKey ||
+      e.metaKey ||
       Math.hypot(e.clientX - start.x, e.clientY - start.y) > 7
     )
       return;
@@ -394,15 +399,16 @@ function mountExperience(
       [...story.targets, ...hitboxes],
       false,
     );
-    if (hits[0]) {
+    const obstruction = raycaster.intersectObject(terrain, true)[0];
+    if (hits[0] && (!obstruction || hits[0].distance < obstruction.distance)) {
       const data = hits[0].object.userData;
       if (data.discovery) discover(data.discovery);
       else if (data.place) travel(data.place);
       return;
     }
-    const intersection = new T.Vector3();
-    if (raycaster.ray.intersectPlane(rayPlane, intersection))
-      go(toIsland(intersection.x, intersection.z));
+    // The grass is front-facing: inspecting the underside must not pick a hidden path/building.
+    const landing = raycaster.intersectObject(ground, false)[0];
+    if (landing) go(toIsland(landing.point.x, landing.point.z));
   };
   const pointerCancel = (e: PointerEvent) => {
     pointers.delete(e.pointerId);
@@ -625,6 +631,12 @@ function mountExperience(
       buildStage: String(workshop.userData.stage),
       cameraDistance: controls.getDistance().toFixed(2),
       cameraAzimuth: controls.getAzimuthalAngle().toFixed(3),
+      cameraPolar: controls.getPolarAngle().toFixed(3),
+      cameraTarget: controls.target
+        .toArray()
+        .map((v) => v.toFixed(2))
+        .join(","),
+      dragMode: panning ? "pan" : "rotate",
     };
     for (const [key, value] of Object.entries(state))
       if (canvas.dataset[key] !== value) canvas.dataset[key] = value;
@@ -693,6 +705,18 @@ function mountExperience(
     tour(value: boolean) {
       tour = value;
     },
+    panCamera(value: boolean) {
+      stop();
+      manualCamera();
+      panning = value;
+      setCameraPan(controls, value);
+      canvas.style.cursor = value ? "move" : "grab";
+      callbacks.hint(
+        value
+          ? "Pan mode: drag to move the view. Switch it off to rotate and click to walk."
+          : "Drag to orbit 360°. Right-drag or Shift-drag to pan; scroll or pinch to zoom.",
+      );
+    },
     zoom(direction: number) {
       if (direction > 0) controls.dollyIn(1 / 1.22);
       else controls.dollyOut(1 / 1.22);
@@ -701,6 +725,9 @@ function mountExperience(
     reset() {
       follow = false;
       tour = false;
+      panning = false;
+      setCameraPan(controls, false);
+      canvas.style.cursor = "grab";
       const damping = controls.enableDamping;
       controls.enableDamping = false;
       controls.update();
@@ -712,6 +739,9 @@ function mountExperience(
         .add(controls.target);
       controls.enableDamping = damping;
       controls.update();
+      callbacks.hint(
+        "Drag to orbit 360°. Right-drag or Shift-drag to pan; scroll or pinch to zoom.",
+      );
     },
     sky(day: boolean) {
       ambient.color.set(day ? "#e2edec" : "#c9c5f6");

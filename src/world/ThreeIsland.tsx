@@ -25,6 +25,7 @@ export default function ThreeIsland(props: Props) {
     [day, setDay] = useState(false),
     [follow, setFollow] = useState(false),
     [tour, setTour] = useState(false),
+    [panning, setPanning] = useState(false),
     [eco, setEco] = useState(false),
     [sound, setSound] = useState(false),
     [expanded, setExpanded] = useState(false),
@@ -32,7 +33,7 @@ export default function ThreeIsland(props: Props) {
     [storyOpen, setStoryOpen] = useState(false);
   const [nearby, setNearby] = useState<Place | null>(null),
     [hint, setHint] = useState(
-      "A new dimension. The same little world of your own.",
+      "Drag to orbit 360°. Right-drag or Shift-drag to pan; scroll or pinch to zoom.",
     ),
     [message, setMessage] = useState("");
   const [projectId, setProjectId] = useState(
@@ -203,6 +204,17 @@ export default function ThreeIsland(props: Props) {
             −
           </button>
           <button
+            aria-label="Pan camera"
+            aria-pressed={panning}
+            title="Pan mode: drag to move the view"
+            onClick={() => {
+              setPanning(!panning);
+              engine.current?.panCamera(!panning);
+            }}
+          >
+            ✥
+          </button>
+          <button
             aria-label="Follow character"
             aria-pressed={follow}
             onClick={() => {
@@ -218,6 +230,7 @@ export default function ThreeIsland(props: Props) {
               engine.current?.reset();
               setFollow(false);
               setTour(false);
+              setPanning(false);
             }}
           >
             ⟲
@@ -325,8 +338,14 @@ export default function ThreeIsland(props: Props) {
         )}
         <div className="three-bottom-bar">
           <div className="three-input-tip">
-            <span>CLICK TO WANDER · DRAG TO ORBIT</span>
-            <small>WASD / arrows · scroll or pinch to zoom</small>
+            <span>
+              {panning
+                ? "PAN MODE · DRAG TO MOVE THE VIEW"
+                : "CLICK TO WANDER · DRAG TO ORBIT 360°"}
+            </span>
+            <small>
+              Right-drag / Shift-drag to pan · scroll or pinch to zoom
+            </small>
           </div>
           <nav
             className="three-destination-dock"

@@ -130,14 +130,18 @@ function facetedIsland(
     for (let i = 0; i < 3; i++) colors.push(shade.r, shade.g, shade.b);
   };
   const stone = ["#415063", "#536373", "#303e55", "#5c6874", "#38475e"];
+  // Adjacent faces share one lower ring so orbiting below cannot reveal cracks.
+  const lower = outline.map(
+    (p, i) =>
+      new T.Vector3(p.x * 0.85, -depth * (0.6 + (i % 3) * 0.11), p.z * 0.85),
+  );
   for (let i = 0; i < outline.length; i++) {
     const a = outline[i],
-      b = outline[(i + 1) % outline.length],
-      drop = depth * (0.6 + (i % 3) * 0.11);
-    const at = new T.Vector3(a.x, -0.03, a.z),
-      bt = new T.Vector3(b.x, -0.03, b.z);
-    const ab = new T.Vector3(a.x * 0.85, -drop, a.z * 0.85),
-      bb = new T.Vector3(b.x * 0.85, -depth * 0.7, b.z * 0.85);
+      b = outline[(i + 1) % outline.length];
+    const at = new T.Vector3(a.x, 0, a.z),
+      bt = new T.Vector3(b.x, 0, b.z);
+    const ab = lower[i],
+      bb = lower[(i + 1) % outline.length];
     addFace(at, bt, ab, stone[i % stone.length]);
     addFace(bt, bb, ab, stone[(i + 2) % stone.length]);
     addFace(
@@ -161,6 +165,7 @@ function facetedIsland(
     }),
   );
   rock.castShadow = true;
+  rock.name = "island-cliff";
   parent.add(rock);
   const shape = new T.Shape();
   outline.forEach((p, i) =>

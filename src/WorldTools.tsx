@@ -50,7 +50,7 @@ export function WorldTools({
       symbol: "⌂",
       title: "Your real life grows this world.",
       body: "Walk to Home Base and pin one small mission. Complete it in your day, then mark it done for 25 XP. Rewards unlock as you grow.",
-      tip: "Click to walk · Drag to orbit in 3D (pan in Classic) · Pinch or scroll to zoom.",
+      tip: "Click to walk · Drag to orbit 360° in 3D · Right-drag or Pan camera to shift the view · Pinch or scroll to zoom.",
     },
     {
       symbol: "✧",
