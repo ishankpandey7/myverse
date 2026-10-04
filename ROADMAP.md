@@ -57,7 +57,8 @@
 - [x] Project archive/reopen shelves and idea-to-project conversion from the journal and Observatory; shared missions and XP are preserved.
 - [x] Browser interaction QA for archive/reopen and Observatory idea-to-project conversion; phone viewport layout checked. Physical touch input remains a release check.
 - Habit recurrence with timezone-aware dates and optional streaks.
-- Focus timer and weekly reflection.
+- [x] Calm Focus mode with shared mission selection, duration presets/custom minutes, pause/resume, background-safe deadlines and same-tab reload recovery. Timer completion grants no XP; real mission completion remains explicit and counted once. Successful world restore resets the separate timer session.
+- [ ] Weekly reflection and optional focus history.
 - Skill Garden and achievement gallery.
 
 ## Checkpoint 4: accounts and release
@@ -90,6 +91,8 @@ Free-camera verification: native controls complete two full turns and reach over
 Detailed-art verification: a JSON backup restored the completed Workshop, avatar, decoration and lit constellation with 50 XP; the updated world opened all three rooms, switched Twilight/Daybreak and reached the underside with mouse orbit. Eco and the 393px phone viewport rendered without horizontal overflow. Reload and Classic → 3D retained the same progress and one canvas. Shared texture/shader-map disposal has a regression test. Representative physical phone/GPU performance remains unmeasured; increased geometry, textures and 2048px shadows still need device budgeting.
 
 ## Quality bar
+
+Focus verification: six timer regression tests bring the suite to 49, covering deadline catch-up, pause/resume, recovery, malformed timer data, duration limits, storage failure and explicit shared-task XP. Browser actions verified unattached/attached sessions, paused and running reload recovery, simulated delayed expiry, explicit mission completion and its completed state after reload. Backup file restore cleared the running timer. The 393px dialog fits without horizontal overflow, long mission titles wrap, Escape returns focus to the opener, action changes keep keyboard focus inside the dialog and reduced motion stops the orbit animation. The timer updates its own component without rerendering the 3D world each second. Physical phone input and long real-world focus sessions remain release checks.
 
 Atmosphere verification: beacon light and waterfall mist rendered without runtime/shader errors in normal and emulated reduced-motion modes. Eco toggled the mist detail and the 393px viewport retained one canvas without overflow. The completed Workshop and 50 XP remained intact. The current 3D bundle is about 173 KB gzipped, still above Vite's default chunk-warning threshold.
 

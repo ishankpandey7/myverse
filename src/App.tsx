@@ -9,6 +9,8 @@ import { ObservatoryRoom } from "./ObservatoryRoom";
 import { Workshop } from "./Workshop";
 import { EditableTitle } from "./EditableTitle";
 import { WorldTools } from "./WorldTools";
+import { FocusStudio } from "./FocusStudio";
+import { storeFocus } from "./focus";
 import { collectFragment, lightBeacon, FRAGMENTS } from "./starfall";
 import type { FragmentId } from "./starfall";
 import { renameItem, restoreGame, needsGuide } from "./polish";
@@ -47,6 +49,7 @@ function App() {
     needsGuide() ? "guide" : null,
   );
   const [homeOpen, setHomeOpen] = useState(false);
+  const [focusOpen, setFocusOpen] = useState(false);
   const [restoreEpoch, setRestoreEpoch] = useState(0);
   const [workshopProject, setWorkshopProject] = useState("");
   const [workshopOpen, setWorkshopOpen] = useState(false);
@@ -241,7 +244,19 @@ function App() {
           <span className="edit-profile">✎</span>
         </button>
       </header>
-      <nav className="world-tool-bar" aria-label="World help and backups">
+      <nav className="world-tool-bar" aria-label="World tools">
+        <FocusStudio
+          key={restoreEpoch}
+          open={focusOpen}
+          onOpen={() => {
+            setPlacing(null);
+            setFocusOpen(true);
+          }}
+          onClose={() => setFocusOpen(false)}
+          save={save}
+          onComplete={complete}
+          saveError={saveError}
+        />
         <button
           onClick={() => {
             setPlacing(null);
@@ -269,6 +284,7 @@ function App() {
           decorations={save.decorations}
           placing={placing}
           paused={
+            focusOpen ||
             atelier !== null ||
             homeOpen ||
             observatoryOpen ||
@@ -369,7 +385,9 @@ function App() {
                   const map = document.getElementById("island-explorer");
                   map?.scrollIntoView({ block: "start" });
                   map
-                    ?.querySelector<HTMLCanvasElement | SVGSVGElement>("canvas, svg")
+                    ?.querySelector<
+                      HTMLCanvasElement | SVGSVGElement
+                    >("canvas, svg")
                     ?.focus({ preventScroll: true });
                 }}
               >
@@ -516,6 +534,12 @@ function App() {
               return "Browser storage is unavailable. Your world has not changed.";
             }
             if (error) return error;
+            try {
+              storeFocus(sessionStorage, null);
+            } catch {
+              /* Focus recovery is optional. */
+            }
+            setFocusOpen(false);
             saveRef.current = incoming;
             setRestoreEpoch((epoch) => epoch + 1);
             setSave(incoming);
