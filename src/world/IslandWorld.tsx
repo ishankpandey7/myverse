@@ -46,7 +46,7 @@ export function IslandWorld({
   save: Save;
   onDiscover: (id: FragmentId) => void;
   onLightBeacon: () => void;
-  onVisit: (place: Place) => void;
+  onVisit: (place: Place, projectId?: string) => void;
   avatar: Avatar;
   decorations: Save["decorations"];
   placing: RewardId | null;

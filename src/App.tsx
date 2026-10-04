@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import "./App.css";
-import { IslandWorld } from "./world/IslandWorld";
+import { WorldExperience } from "./world/WorldExperience";
 import type { Place } from "./world/navigation";
 import { Atelier } from "./Atelier";
 import { HomeRoom } from "./HomeRoom";
@@ -71,9 +71,9 @@ function App() {
   const xp = totalXP(save);
   const level = Math.floor(xp / 100) + 1;
 
-  function enterPlace(place: Place) {
+  function enterPlace(place: Place, projectId = "") {
     if (place === "workshop") {
-      setWorkshopProject("");
+      setWorkshopProject(projectId);
       setWorkshopOpen(true);
       return;
     }
@@ -109,7 +109,7 @@ function App() {
       const island = document.getElementById("island-explorer");
       island?.scrollIntoView({ block: "start" });
       island
-        ?.querySelector<SVGElement>("[data-plot-choice]")
+        ?.querySelector<HTMLElement | SVGElement>("[data-plot-choice]")
         ?.focus({ preventScroll: true });
     });
   }
@@ -117,7 +117,7 @@ function App() {
     requestAnimationFrame(() =>
       document
         .getElementById("island-explorer")
-        ?.querySelector("svg")
+        ?.querySelector<HTMLCanvasElement | SVGSVGElement>("canvas, svg")
         ?.focus({ preventScroll: true }),
     );
   }
@@ -260,7 +260,7 @@ function App() {
         </button>
       </nav>
       <main key={restoreEpoch}>
-        <IslandWorld
+        <WorldExperience
           save={save}
           onDiscover={discover}
           onLightBeacon={() => updateSave(lightBeacon)}
@@ -368,7 +368,9 @@ function App() {
                   setJournalOpen(false);
                   const map = document.getElementById("island-explorer");
                   map?.scrollIntoView({ block: "start" });
-                  map?.querySelector("svg")?.focus({ preventScroll: true });
+                  map
+                    ?.querySelector<HTMLCanvasElement | SVGSVGElement>("canvas, svg")
+                    ?.focus({ preventScroll: true });
                 }}
               >
                 ↑ Back to island

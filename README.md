@@ -15,11 +15,11 @@ Open the localhost link printed in the terminal. `npm run build` checks TypeScri
 
 ## Current checkpoint: explore Moonhollow
 
-- A larger explorable SVG island with a forest, paths, pond, fountain, waterfall and two working destinations.
-- Click/tap the ground to walk. Drag to pan. Focus the map and use WASD/arrow keys to move; Escape stops a route. E/Enter opens a nearby building.
-- Select Home Base or the Idea Observatory to walk to its entrance and open its journal. The destination buttons below the map also work with touch and keyboard.
-- Pinch or use two-finger scrolling / the mouse wheel over the map to zoom around the cursor (50–200%). The +/− buttons also work. Gestures release camera follow so the cursor stays anchored; scrolling outside the map still scrolls the page.
-- Follow the character or fit the whole island into view. Phone visits scroll to the journal, with a Back to island button.
+- A playable 3D floating island with faceted cliffs, pine woods, a cottage, evolving Workshop, domed Observatory, animated pond/waterfall, a ringed planet and star field. The existing SVG island is available through Classic view and automatic WebGL fallback. Interiors remain SVG rooms.
+- Click/tap the ground to walk; click a building to visit. Drag to orbit the 3D camera (pan in Classic). Focus the world and use WASD/arrow keys for camera-relative movement in 3D; Escape stops a route. E/Enter opens a nearby building.
+- Select Home Base, Workshop or Observatory to walk to its entrance and open the shared room. Destination controls also work with keyboard and touch.
+- Pinch or scroll over the world to zoom; +/− also work. Manual camera input releases follow/orbit. Classic retains its 50–200% cursor-anchored zoom. Scrolling outside the canvas scrolls the page.
+- Follow the character, reset the camera, or enable a slow cinematic orbit. Phone camera framing shows the whole island; zoom in to explore. Eco mode removes postprocessing/shadows and limits pixel density. Classic is the lighter alternative.
 - Navigation routes around buildings, tree trunks, water and island edges. Artwork and movement geometry live separately under `src/world` so the world can grow.
 - Add missions, complete them once, and receive 25 XP each. Every 100 XP raises your level.
 - Open the profile button to customise your character's name, outfit, skin tone and hat. The preview and island use the same character artwork.
@@ -38,9 +38,9 @@ Open the localhost link printed in the terminal. `npm run build` checks TypeScri
 - The three-card Island guide introduces movement, missions, ideas, projects and local saves. Dismissing it is remembered in this browser; reopen it from the toolbar.
 - Backup & restore downloads a versioned JSON world. Import a file (up to 10 MB) or paste backup text, review its counts, then explicitly replace the current world. Before replacement, the app saves a recovery copy of current session progress and preserves the raw original. The previous world can be previewed and restored from the same panel. This is one-level local recovery, not cloud history. Invalid backups and failed writes leave the current world in place.
 
-The Starfall Chapter adds a small island story: walk to three fallen fragments (or follow their cards below the map), finish a real-world mission, then visit the beacon. It awakens an Origin constellation and a chapter celebration. Fragment discoveries and the lit beacon save with your world, including JSON export and restore. Exploring adds no XP; shared mission completion still grants 25 XP exactly once. Previously completed missions count toward the beacon.
+The Starfall Chapter adds a small island story: walk to three fallen fragments (or open Your island story and follow a memory), finish a real-world mission, then visit the beacon. It awakens an Origin constellation and a chapter celebration. Fragment discoveries and the lit beacon save with your world, including JSON export and restore. Exploring adds no XP; shared mission completion still grants 25 XP exactly once. Previously completed missions count toward the beacon.
 
-Moonlight and Dawn change the atmosphere; Immerse opens the island in fullscreen where the browser supports it. Sound starts only when enabled and is synthesised locally. It pauses in a hidden tab and is released when switched off. New animations respect the system's reduced-motion preference. Atmosphere, audio, position and camera are session-only.
+Twilight/Daybreak (Moonlight/Dawn in Classic) change the atmosphere; Immerse opens the island in fullscreen where the browser supports it. Sound starts only when enabled and is synthesised locally. It pauses in a hidden tab and is released when switched off. New animations respect the system's reduced-motion preference. Atmosphere, quality, audio, position and camera are session-only. 3D rendering pauses when the world is offscreen or behind a room, and releases resources when its view is replaced.
 
 This is an early playable world. Project archive/reopen is available; richer rewards, free placement, mission/idea organisation, deletion, accounts and cloud sync are future milestones. Mission/idea drafts survive switching journals and leaving their rooms within a session, but not a page refresh or a backup restore.
 
@@ -50,7 +50,9 @@ Save version 3 retains the original storage key and migrates v1/v2 saves without
 
 ## Technology and ownership
 
-React + TypeScript + Vite, with an SVG world in this first checkpoint. The code is a normal local Git project; Codex Sites is not used. Later world interactions can use a dedicated rendering layer if the gameplay needs it.
+React + TypeScript + Vite + Three.js. The 3D world loads in a separate bundle, with code-generated geometry and shaders; it requires WebGL2. `src/world/three/coordinates.ts` maps the original navigation grid to 3D, `models.ts` builds scenery from shared saves, and `experience.ts` manages camera/input/rendering/lifecycle. SVG remains available for Classic and room interiors. No save migration or second progression system is introduced by 3D.
+
+Tests also cover alignment between 3D ground and navigation, Workshop growth from shared missions, and disposal of shared rendering resources. Browser QA uses `localhost:5173`, separate from the owner's `127.0.0.1:5173` save. Physical phone touch input and representative GPU performance still need release testing. The 3D bundle is larger than the original illustrated renderer.
 
 GitHub stores code and progress history. Vercel is the planned host; Supabase is the planned authentication and cloud database service. Neither is needed to run this local checkpoint. No external account or paid service is created by the starter.
 

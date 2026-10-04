@@ -34,7 +34,7 @@
 - [x] Home Base cottage: station-based character movement, shared mission board, active/completed views, earned wonder shelf, keyboard exit and responsive layout.
 - [x] Observatory interior with idea desk, clickable constellation, search, six-star pages and conversion into missions.
 - [ ] Free movement inside rooms.
-- [ ] Sound controls; reduced-motion support is already present.
+- [x] Opt-in sound controls and reduced-motion support.
 - [x] Mission/idea title editing, including shared Workshop tasks. Idea search is available in the Observatory.
 - [ ] Archiving, mission search and tags.
 - [x] JSON backup export, previewed restore and previous-world recovery, with version validation and failed-write protection.
@@ -42,13 +42,17 @@
 - [x] Automated tests for progression, migration, editing and restore behavior.
 - [x] Starfall Chapter: three reachable fragments and their memories, a mission-gated beacon, permanent Origin constellation and chapter celebration. Exploration does not duplicate mission XP.
 - [x] Moonlight/Dawn atmosphere, aurora, fireflies, lamplight, opt-in synthesised sound and immersive fullscreen; new animations respect reduced motion.
+- [x] Playable 3D Moonhollow: faceted floating island, dimensional buildings/character/decorations, ringed planet, stars, animated water, shadows and glow. Orbit/zoom/follow camera, camera-relative walking and existing obstacle-aware routes. All three destinations open the shared rooms.
+- [x] Living 3D Workshop follows the selected project's four real task stages; selecting another build changes its model and opens that project's planning room.
+- [x] Classic SVG switch and automatic fallback for unavailable/lost WebGL; quality/Eco control, responsive camera framing, paused rendering behind rooms and when offscreen, GPU cleanup and lazy loading.
+- [ ] Physical touch-device input and GPU performance budgets for the 3D world. Room interiors remain SVG and station-based.
 
 ## Checkpoint 3: ideas become projects
 
 - [x] Project Workshop building, multiple projects, milestones, shared mission tasks, four-stage progress model and v3 save migration with backups.
 - [x] Project and milestone title editing.
 - [x] Project archive/reopen shelves and idea-to-project conversion from the journal and Observatory; shared missions and XP are preserved.
-- [ ] Browser interaction and mobile visual QA for archive/reopen and idea-to-project conversion (browser connection unavailable during implementation).
+- [x] Browser interaction QA for archive/reopen and Observatory idea-to-project conversion; phone viewport layout checked. Physical touch input remains a release check.
 - Habit recurrence with timezone-aware dates and optional streaks.
 - Focus timer and weekly reflection.
 - Skill Garden and achievement gallery.
@@ -62,7 +66,7 @@
 
 ## Later, only if useful
 
-AI planning buddy, richer islands, possible 3D exploration, friends challenges and calendar integrations. Keep game data separate from artwork so later rendering changes can preserve progress. API-backed features need a separate service setup and cost decision.
+AI planning buddy, more explorable islands, richer 3D rooms, friends challenges and calendar integrations. Keep game data separate from artwork so rendering changes preserve progress. API-backed features need a separate service setup and cost decision.
 
 ## Bigger release direction — proposed, not implemented
 
@@ -72,9 +76,11 @@ MyVerse becomes a personal universe shaped by the things its owner actually does
 2. **Useful daily play:** mission search/organisation, a calm focus ritual, optional habits and weekly reflection. No punishment for breaks; avoid turning every action into a grind.
 3. **Projects leave a mark:** project-specific monuments, a Skill Garden and an achievement gallery. Completed real tasks develop the world rather than awarding duplicate XP.
 4. **A reliable public release:** Supabase accounts, ownership policies, save migration/conflict recovery, Vercel previews and deployment, phone testing and performance budgets.
-5. **Expand after the core works:** additional explorable islands, optional 3D rendering and opt-in shared challenges. Decide scope and service costs before adding cloud or AI dependencies.
+5. **Expand after the core works:** additional explorable islands, richer 3D gameplay and opt-in shared challenges. Decide scope and service costs before adding cloud or AI dependencies.
 
 Starfall verification: all three fragments collected through browser walking, a real mission completed once for 25 XP, beacon/celebration unlocked and persisted through reload. Fullscreen, sound toggles, Dawn/Moonlight and reduced-motion styles checked. Mobile viewport checked at 393px without horizontal overflow; physical touch devices remain part of release testing. Existing backups/recovery and corrupt-story protection have regression tests.
+
+3D verification: all three rooms reached from the rendered world; a project created with two shared tasks, completed across Workshop and Home Base for exactly 50 XP, and its island model progressed through all four stages. Camera-relative keyboard movement stayed on walkable ground; click walking retained follow, dragging released it, and zoom changed distance in the correct direction. Story, avatar and placed lantern persisted through reload. Orbit, reduced motion, lighting, Eco, sound and fullscreen checked. Backup file input → preview → restore rebuilt one canvas and retained progress/recovery; a deliberately lost WebGL context switched to Classic without changing the save. File-input integration is now browser-verified through automation; the native operating-system picker itself was not controlled. Unit suite: 39 passing tests, plus production build and strict lint. The separate 3D chunk is about 165 KB gzipped; its size still triggers Vite's default chunk warning.
 
 ## Quality bar
 

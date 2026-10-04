@@ -50,7 +50,7 @@ export function WorldTools({
       symbol: "⌂",
       title: "Your real life grows this world.",
       body: "Walk to Home Base and pin one small mission. Complete it in your day, then mark it done for 25 XP. Rewards unlock as you grow.",
-      tip: "Click to walk · Drag to pan · Pinch or scroll over the island to zoom.",
+      tip: "Click to walk · Drag to orbit in 3D (pan in Classic) · Pinch or scroll to zoom.",
     },
     {
       symbol: "✧",
@@ -62,7 +62,7 @@ export function WorldTools({
       symbol: "⚒",
       title: "Build something bigger.",
       body: "The Workshop turns projects into milestones and small tasks. Finish them to watch your model grow. Rename titles with the pencil whenever plans change.",
-      tip: "Try the Starfall story below the island: find three fragments and complete one real-life mission to awaken your beacon. Download backups to keep your world safe.",
+      tip: "Open Your island story to find three fragments and awaken your beacon with one real-life mission. Download backups to keep your world safe.",
     },
   ];
   const slide = slides[step];
