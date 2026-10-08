@@ -11,6 +11,7 @@ import { AvatarArt } from "./world/PersonalArt";
 import "./home-room.css";
 import "./workshop.css";
 import { EditableTitle } from "./EditableTitle";
+import { SkillBadge } from "./GrowthArt";
 import type { EditableKind } from "./polish";
 
 const stages = [
@@ -426,6 +427,7 @@ function Milestone({
               title={task.title}
               onSave={(title) => onRename("missions", task.id, title)}
             />
+            <SkillBadge skill={task.skill} />
             <button
               disabled={task.done}
               aria-label={

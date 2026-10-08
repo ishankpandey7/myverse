@@ -12,6 +12,16 @@ import { WorldTools } from "./WorldTools";
 import { FocusStudio } from "./FocusStudio";
 import { storeFocus } from "./focus";
 import { MissionSearch } from "./MissionSearch";
+import { GrowthStudio } from "./GrowthStudio";
+import { SkillBadge } from "./GrowthArt";
+import {
+  assignSkill,
+  planGrowthMission,
+  recordAchievements,
+  galleryProgress,
+  ACHIEVEMENTS,
+} from "./growth";
+import type { AchievementId } from "./growth";
 import { collectFragment, lightBeacon, FRAGMENTS } from "./starfall";
 import type { FragmentId } from "./starfall";
 import { renameItem, restoreGame, needsGuide } from "./polish";
@@ -51,6 +61,8 @@ function App() {
   );
   const [homeOpen, setHomeOpen] = useState(false);
   const [focusOpen, setFocusOpen] = useState(false);
+  const [gardenOpen, setGardenOpen] = useState(false);
+  const [earnedMoment, setEarnedMoment] = useState<AchievementId | null>(null);
   const [restoreEpoch, setRestoreEpoch] = useState(0);
   const [workshopProject, setWorkshopProject] = useState("");
   const [workshopOpen, setWorkshopOpen] = useState(false);
@@ -85,6 +97,10 @@ function App() {
   const level = Math.floor(xp / 100) + 1;
 
   function enterPlace(place: Place, projectId = "") {
+    if (place === "garden") {
+      setGardenOpen(true);
+      return;
+    }
     if (place === "workshop") {
       setWorkshopProject(projectId);
       setWorkshopOpen(true);
@@ -102,8 +118,18 @@ function App() {
   }
 
   function updateSave(update: (previous: Save) => Save) {
-    const next = update(saveRef.current);
+    const known = new Set(
+      galleryProgress(saveRef.current)
+        .filter((a) => a.earned)
+        .map((a) => a.id),
+    );
+    const next = recordAchievements(
+      update(recordAchievements(saveRef.current)),
+    );
     if (next === saveRef.current) return;
+    const newlyEarned = next.growth?.earned.filter((id) => !known.has(id));
+    if (newlyEarned?.length)
+      setEarnedMoment(newlyEarned[newlyEarned.length - 1]);
     if (next.missions.length > saveRef.current.missions.length) {
       setMissionSearch("");
     }
@@ -259,6 +285,14 @@ function App() {
         </button>
       </header>
       <nav className="world-tool-bar" aria-label="World tools">
+        <button
+          onClick={() => {
+            setPlacing(null);
+            setGardenOpen(true);
+          }}
+        >
+          ❋ Growth & gallery
+        </button>
         <FocusStudio
           key={restoreEpoch}
           open={focusOpen}
@@ -298,6 +332,7 @@ function App() {
           decorations={save.decorations}
           placing={placing}
           paused={
+            gardenOpen ||
             focusOpen ||
             atelier !== null ||
             homeOpen ||
@@ -483,6 +518,9 @@ function App() {
                       onSave={(title) => rename(tab, item.id, title)}
                     />
                     {tab === "missions" ? (
+                      <SkillBadge skill={item.skill} />
+                    ) : null}
+                    {tab === "missions" ? (
                       <button
                         disabled={item.done}
                         onClick={() => complete(item.id)}
@@ -569,6 +607,8 @@ function App() {
               /* Focus recovery is optional. */
             }
             setFocusOpen(false);
+            setGardenOpen(false);
+            setEarnedMoment(null);
             saveRef.current = incoming;
             setRestoreEpoch((epoch) => epoch + 1);
             setSave(incoming);
@@ -642,6 +682,42 @@ function App() {
             focusIsland();
           }}
         />
+      )}
+      {gardenOpen && (
+        <GrowthStudio
+          key={`growth-${restoreEpoch}`}
+          save={save}
+          saveError={saveError}
+          onClose={() => {
+            setGardenOpen(false);
+            focusIsland();
+          }}
+          onAssign={(id, skill) =>
+            updateSave((previous) => assignSkill(previous, id, skill))
+          }
+          onPlan={(title, skill) =>
+            updateSave((previous) =>
+              planGrowthMission(previous, crypto.randomUUID(), title, skill),
+            )
+          }
+          onComplete={complete}
+          onRename={(id, title) => rename("missions", id, title)}
+        />
+      )}
+      {earnedMoment && !gardenOpen && (
+        <aside className="growth-toast" role="status">
+          <span aria-hidden="true">{ACHIEVEMENTS[earnedMoment].symbol}</span>
+          <div>
+            <small>MILESTONE EARNED</small>
+            <b>{ACHIEVEMENTS[earnedMoment].name}</b>
+          </div>
+          <button
+            aria-label="Dismiss achievement"
+            onClick={() => setEarnedMoment(null)}
+          >
+            ×
+          </button>
+        </aside>
       )}
       {atelier && (
         <Atelier

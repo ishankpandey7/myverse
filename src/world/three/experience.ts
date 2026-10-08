@@ -8,6 +8,8 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { makePlanet } from "./celestial";
 import { createSurfacePalette } from "./surfaces";
 import { makeWaterfallMist } from "./atmosphere";
+import { makeGarden } from "./garden";
+import { gardenProgress } from "../../growth";
 import { PLACES, SPAWN, distance, findPath, moveBy } from "../navigation";
 import type { Place, Point } from "../navigation";
 import type { Save } from "../../game";
@@ -309,22 +311,43 @@ function mountExperience(
   const hitboxes: T.Object3D[] = [];
   for (const place of Object.keys(PLACES) as Place[]) {
     const p = toWorld({
-      x: place === "home" ? 490 : place === "workshop" ? 720 : 975,
-      y: place === "home" ? 420 : place === "workshop" ? 410 : 381,
+      x:
+        place === "garden"
+          ? 520
+          : place === "home"
+            ? 490
+            : place === "workshop"
+              ? 720
+              : 975,
+      y:
+        place === "garden"
+          ? 605
+          : place === "home"
+            ? 420
+            : place === "workshop"
+              ? 410
+              : 381,
     });
     const target = new T.Mesh(
-      new T.BoxGeometry(place === "home" ? 3.8 : 2.8, 4, 2.4),
+      new T.BoxGeometry(
+        place === "home" ? 3.8 : 2.8,
+        place === "garden" ? 2.7 : 4,
+        place === "garden" ? 1.5 : 2.4,
+      ),
       new T.MeshBasicMaterial({
         transparent: true,
         opacity: 0,
         depthWrite: false,
       }),
     );
-    target.position.set(p.x, 2, p.z);
+    target.position.set(p.x, place === "garden" ? 1.35 : 2, p.z);
     target.userData.place = place;
     scene.add(target);
     hitboxes.push(target);
   }
+  let garden = makeGarden(initial),
+    gardenKey = JSON.stringify(garden.userData.stages);
+  scene.add(garden);
   let route: Point[] = [],
     arrival: (() => void) | null = null,
     paused = false,
@@ -669,6 +692,7 @@ function mountExperience(
         .map((v) => v.toFixed(2))
         .join(","),
       dragMode: panning ? "pan" : "rotate",
+      gardenStages: gardenKey,
     };
     for (const [key, value] of Object.entries(state))
       if (canvas.dataset[key] !== value) canvas.dataset[key] = value;
@@ -679,6 +703,14 @@ function mountExperience(
   function update(next: Save) {
     save = next;
     needsRender = true;
+    const gk = JSON.stringify(gardenProgress(next).map((p) => p.stage));
+    if (gk !== gardenKey) {
+      scene.remove(garden);
+      disposeObject(garden);
+      garden = makeGarden(next);
+      scene.add(garden);
+      gardenKey = gk;
+    }
     const ak = JSON.stringify(next.avatar);
     if (ak !== avatarKey) {
       scene.remove(avatar.group);

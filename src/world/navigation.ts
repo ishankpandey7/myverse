@@ -1,5 +1,5 @@
 export type Point = { x: number; y: number };
-export type Place = "home" | "observatory" | "workshop";
+export type Place = "home" | "observatory" | "workshop" | "garden";
 export const SPAWN: Point = { x: 660, y: 580 };
 export const LAND: Point[] = [
   { x: 130, y: 425 },
@@ -18,6 +18,7 @@ export const PLACES: Record<Place, { name: string; entrance: Point }> = {
   home: { name: "Home Base", entrance: { x: 520, y: 500 } },
   workshop: { name: "Project Workshop", entrance: { x: 720, y: 495 } },
   observatory: { name: "Idea Observatory", entrance: { x: 980, y: 460 } },
+  garden: { name: "Skill Garden", entrance: { x: 520, y: 670 } },
 };
 export const TREES = [
   [230, 420, 1.1],
@@ -47,6 +48,7 @@ const STEP = 20;
 const COLS = 71;
 const ROWS = 46;
 const rectangles = [
+  { x: 455, y: 565, w: 130, h: 80 },
   { x: 663, y: 370, w: 115, h: 80 },
   { x: 405, y: 368, w: 170, h: 105 },
   { x: 915, y: 327, w: 120, h: 108 },

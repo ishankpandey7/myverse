@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { BEFORE_RESTORE, GUIDE_KEY } from "./polish";
 import { decodeSave, totalXP } from "./game";
 import type { Save } from "./game";
+import { galleryProgress } from "./growth";
 import "./polish.css";
 export function WorldTools({
   mode,
@@ -62,7 +63,7 @@ export function WorldTools({
       symbol: "⚒",
       title: "Build something bigger.",
       body: "The Workshop turns projects into milestones and small tasks. Finish them to watch your model grow. Rename titles with the pencil whenever plans change.",
-      tip: "Open Your island story to find three fragments and awaken your beacon with one real-life mission. Download backups to keep your world safe.",
+      tip: "Skill Garden links missions to Craft, Curiosity or Wellbeing. Completed steps grow plants and earn gallery keepsakes. Download backups to keep your world safe.",
     },
   ];
   const slide = slides[step];
@@ -224,6 +225,12 @@ export function WorldTools({
                 {pending.missions.length} missions · {pending.ideas.length}{" "}
                 ideas · {pending.projects.length} projects · {totalXP(pending)}{" "}
                 XP
+              </p>
+              <p>
+                {pending.missions.filter((m) => m.skill).length} missions
+                assigned to growth paths ·{" "}
+                {galleryProgress(pending).filter((a) => a.earned).length}/7
+                garden milestones earned
               </p>
               <p>
                 This replaces your current progress. A recovery copy of your

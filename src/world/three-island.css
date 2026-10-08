@@ -319,6 +319,16 @@
   backdrop-filter: blur(12px);
 }
 .three-destination-dock button {
+  min-height: 44px;
+}
+@media (max-width: 760px) {
+  .three-destination-dock {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+}
+.three-destination-dock button {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -679,7 +689,11 @@
     font-size: 11px;
   }
   .three-destination-dock small {
-    font-size: 9px;
+    font-size: 8px;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     margin-top: 3px;
   }
   .three-experience-tools {

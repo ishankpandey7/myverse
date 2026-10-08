@@ -43,7 +43,7 @@
 - [x] Automated tests for progression, migration, editing and restore behavior.
 - [x] Starfall Chapter: three reachable fragments and their memories, a mission-gated beacon, permanent Origin constellation and chapter celebration. Exploration does not duplicate mission XP.
 - [x] Moonlight/Dawn atmosphere, aurora, fireflies, lamplight, opt-in synthesised sound and immersive fullscreen; new animations respect reduced motion.
-- [x] Playable 3D Moonhollow: faceted floating island, dimensional buildings/character/decorations, ringed planet, stars, animated water, shadows and glow. Orbit/zoom/follow camera, camera-relative walking and existing obstacle-aware routes. All three destinations open the shared rooms.
+- [x] Playable 3D Moonhollow: faceted floating island, dimensional buildings/character/decorations, ringed planet, stars, animated water, shadows and glow. Orbit/zoom/follow camera, camera-relative walking and existing obstacle-aware routes. Home Base, Workshop, Observatory and Skill Garden open their shared views.
 - [x] Living 3D Workshop follows the selected project's four real task stages; selecting another build changes its model and opens that project's planning room.
 - [x] Classic SVG switch and automatic fallback for unavailable/lost WebGL; quality/Eco control, responsive camera framing, paused rendering behind rooms and when offscreen, GPU cleanup and lazy loading.
 - [x] Free 360° camera with top/side/underside views, unrestricted screen-space pan, mouse/touch Pan mode and reset. Camera drags never trigger walking; the island underside cannot select hidden buildings or ground.
@@ -60,7 +60,8 @@
 - Habit recurrence with timezone-aware dates and optional streaks.
 - [x] Calm Focus mode with shared mission selection, duration presets/custom minutes, pause/resume, background-safe deadlines and same-tab reload recovery. Timer completion grants no XP; real mission completion remains explicit and counted once. Successful world restore resets the separate timer session.
 - [ ] Weekly reflection and optional focus history.
-- Skill Garden and achievement gallery.
+- [x] Skill Garden: Craft, Curiosity and Wellbeing mission assignments, retroactive credit for completed work, seed/sprout/sapling/bloom stages at 0/1/3/6 completed missions, shared SVG/3D plants and a fourth reachable destination. Search, status filters, pagination, planning and title editing use the existing shared missions. Moving assignments preserves IDs, completion, project references and XP.
+- [x] Achievement Gallery: seven real mission/project/garden/Starfall milestones, visible locked progress, earned feedback and persisted keepsakes. Previously earned badges survive reassignment and expansion of finished projects. Optional v3 fields remain compatible with old backups; no bonus XP or streak penalties.
 
 ## Checkpoint 4: accounts and release
 
@@ -92,6 +93,8 @@ Free-camera verification: native controls complete two full turns and reach over
 Detailed-art verification: a JSON backup restored the completed Workshop, avatar, decoration and lit constellation with 50 XP; the updated world opened all three rooms, switched Twilight/Daybreak and reached the underside with mouse orbit. Eco and the 393px phone viewport rendered without horizontal overflow. Reload and Classic → 3D retained the same progress and one canvas. Shared texture/shader-map disposal has a regression test. Representative physical phone/GPU performance remains unmeasured; increased geometry, textures and 2048px shadows still need device budgeting.
 
 ## Quality bar
+
+Skill Garden verification: 59 regression tests cover real thresholds, shared task references, retained achievements, malformed-save protection, old v3 compatibility, v1/v2 backups, reachability and GPU resource disposal. Browser actions grew a Craft bloom, reassigned completed work without extra XP, exercised search/pagination and completed tagged Workshop tasks through Focus and Home Base. Focus expiry granted no XP; explicit completion brought ten missions to exactly 250 XP. All seven gallery milestones unlocked, including the mission-gated Starfall beacon; adding a new project task retained Builder. Reload and Classic/3D switching retained shared progress. An old backup restored seed stages, then recovery brought back the garden and seven recorded badges with one canvas. A deliberately newer save remained untouched by a new session mission; explicit file-input restore retained its raw original and unsaved session recovery. The generated download Blob was validated as JSON; native download persistence was not confirmed in this pass. The 393px layout fits without horizontal overflow, heading/tabs and destination/story controls stay separate, keyboard tabs/Escape work and reduced motion removes plant animation. Physical touch input and GPU budgeting remain release checks.
 
 Mission-search verification: browser actions covered trimmed/case-insensitive matches, no results, clear-button keyboard focus, shared journal/room queries, Active/Completed views, mission addition and idea conversion clearing a filter, rename preserving IDs/completion, completion for exactly 50 XP across both views, reload and backup restore. The 393px journal and Home Base search fit without horizontal overflow. All 49 existing regression tests pass; save schema remains v3 and search is excluded from backups.
 

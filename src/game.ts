@@ -1,6 +1,13 @@
 import { validStarfall } from "./starfall.ts";
 import type { Starfall } from "./starfall";
-export type Entry = { id: string; title: string; done: boolean };
+import { validSkill, validGrowth } from "./growth.ts";
+import type { SkillId, GrowthRecord } from "./growth";
+export type Entry = {
+  id: string;
+  title: string;
+  done: boolean;
+  skill?: SkillId;
+};
 export const OUTFITS = {
   twilight: {
     name: "Twilight",
@@ -72,6 +79,7 @@ export type Project = {
 export type Save = {
   version: 3;
   starfall?: Starfall;
+  growth?: GrowthRecord;
   projects: Project[];
   missions: Entry[];
   ideas: Entry[];
@@ -116,7 +124,8 @@ function entries(value: unknown): value is Entry[] {
         record(item) &&
         typeof item.id === "string" &&
         typeof item.title === "string" &&
-        typeof item.done === "boolean",
+        typeof item.done === "boolean" &&
+        (item.skill === undefined || validSkill(item.skill)),
     ) &&
     new Set(value.map((item) => item.id)).size === value.length
   );
@@ -174,10 +183,17 @@ export function decodeSave(raw: string): Save {
     throw new Error(
       "The saved island story could not be read. Its original data has been kept.",
     );
+  if (value.growth !== undefined && !validGrowth(value.growth))
+    throw new Error(
+      "The saved garden milestones could not be read. Their original data has been kept.",
+    );
   return {
     version: 3,
     ...(value.starfall !== undefined
       ? { starfall: value.starfall as Starfall }
+      : {}),
+    ...(value.growth !== undefined
+      ? { growth: value.growth as GrowthRecord }
       : {}),
     projects,
     missions: value.missions,

@@ -5,6 +5,7 @@ import { AvatarArt, DecorationArt } from "./world/PersonalArt";
 import "./home-room.css";
 import { EditableTitle } from "./EditableTitle";
 import { MissionSearch } from "./MissionSearch";
+import { SkillBadge } from "./GrowthArt";
 
 type Station = "welcome" | "board" | "shelf";
 const positions = { welcome: [420, 460], board: [265, 370], shelf: [570, 390] };
@@ -366,6 +367,7 @@ export function HomeRoom({
                       title={mission.title}
                       onSave={(title) => onRename(mission.id, title)}
                     />
+                    <SkillBadge skill={mission.skill} />
                     <button
                       disabled={mission.done}
                       onClick={() => {

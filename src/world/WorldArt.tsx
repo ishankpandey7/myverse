@@ -4,6 +4,7 @@ import type { Point } from "./navigation";
 import { PLOTS } from "../game";
 import type { Avatar, Save, RewardId } from "../game";
 import { AvatarArt, DecorationArt } from "./PersonalArt";
+import { GardenArt } from "../GrowthArt";
 
 export const Terrain = memo(function Terrain() {
   const outline = LAND.map((p) => `${p.x},${p.y}`).join(" ");
@@ -284,11 +285,13 @@ export function WorldEntities({
   moving,
   avatar,
   decorations,
+  save,
 }: {
   position: Point;
   moving: boolean;
   avatar: Avatar;
   decorations: Save["decorations"];
+  save: Save;
 }) {
   const character = (
     <g
@@ -325,6 +328,11 @@ export function WorldEntities({
       {[
         ...staticEntities,
         ...personal,
+        {
+          y: 620,
+          key: "skill-garden",
+          node: <GardenArt key="skill-garden" save={save} />,
+        },
         { y: position.y, key: "player", node: character },
       ]
         .sort((a, b) => a.y - b.y)

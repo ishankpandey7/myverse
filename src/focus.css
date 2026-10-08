@@ -231,6 +231,11 @@
   text-align: center;
   margin: 12px 0;
 }
+.focus-session > .skill-badge {
+  display: block;
+  text-align: center;
+  margin: -12px 0 18px;
+}
 .focus-studio .focus-reset {
   display: block;
   border: 0;

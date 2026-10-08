@@ -131,20 +131,31 @@ export function IslandWorld({
   useEffect(() => {
     let resizeFrame = 0;
     const fullscreen = () => {
-      const active = document.fullscreenElement === svg.current?.closest("section");
+      const active =
+        document.fullscreenElement === svg.current?.closest("section");
       setExpanded(active);
       cancelAnimationFrame(resizeFrame);
-      if (active) resizeFrame = requestAnimationFrame(() => {
-        const target = frame.current;
-        if (!target || document.fullscreenElement !== target.closest("section")) return;
-        const bounds = target.getBoundingClientRect();
-        if (!bounds.height) return;
-        const nextAspect = bounds.width / bounds.height;
-        const nextWidth = nextAspect < 1 ? 950 : 1400;
-        setZoom(Math.max(0.5, Math.min(1, nextWidth / Math.max(1400, 900 * nextAspect))));
-        setCenter(HOME_CAMERA);
-        setFollowing(false);
-      });
+      if (active)
+        resizeFrame = requestAnimationFrame(() => {
+          const target = frame.current;
+          if (
+            !target ||
+            document.fullscreenElement !== target.closest("section")
+          )
+            return;
+          const bounds = target.getBoundingClientRect();
+          if (!bounds.height) return;
+          const nextAspect = bounds.width / bounds.height;
+          const nextWidth = nextAspect < 1 ? 950 : 1400;
+          setZoom(
+            Math.max(
+              0.5,
+              Math.min(1, nextWidth / Math.max(1400, 900 * nextAspect)),
+            ),
+          );
+          setCenter(HOME_CAMERA);
+          setFollowing(false);
+        });
     };
     document.addEventListener("fullscreenchange", fullscreen);
     const visibility = () => audio.current?.pause(document.hidden);
@@ -561,12 +572,20 @@ export function IslandWorld({
               moving={moving}
               avatar={avatar}
               decorations={decorations}
+              save={save}
             />
           </g>
           {(Object.keys(PLACES) as Place[]).map((place) => {
             const home = place === "home",
-              x = home ? 480 : place === "workshop" ? 720 : 975,
-              y = home ? 445 : 430;
+              x =
+                place === "garden"
+                  ? 520
+                  : home
+                    ? 480
+                    : place === "workshop"
+                      ? 720
+                      : 975,
+              y = place === "garden" ? 635 : home ? 445 : 430;
             return (
               <g
                 key={place}
@@ -621,9 +640,11 @@ export function IslandWorld({
                   >
                     {home
                       ? "MISSIONS & DAILY ADVENTURES"
-                      : place === "workshop"
-                        ? "SMALL STEPS, BIG BUILDS"
-                        : "A HOME FOR YOUR IDEAS"}
+                      : place === "garden"
+                        ? "GROW YOUR REAL-WORLD SKILLS"
+                        : place === "workshop"
+                          ? "SMALL STEPS, BIG BUILDS"
+                          : "A HOME FOR YOUR IDEAS"}
                   </text>
                 </g>
               </g>
@@ -799,6 +820,9 @@ export function IslandWorld({
       <div className="explorer-footer">
         <p role="status">{hint}</p>
         <nav aria-label="Island destinations">
+          <button onClick={() => travel(PLACES.garden.entrance, "garden")}>
+            ❋ Skill Garden
+          </button>
           <button onClick={() => travel(PLACES.workshop.entrance, "workshop")}>
             ⚒ Workshop
           </button>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import type { Save } from "./game";
+import { SkillBadge } from "./GrowthArt";
 import {
   advanceFocus,
   formatFocus,
@@ -274,6 +275,7 @@ export function FocusStudio({
                   ? "This mission is no longer in this world."
                   : "A quiet moment for whatever matters to you.")}
             </p>
+            <SkillBadge skill={mission?.skill} />
             {status === "finished" ? (
               <>
                 {mission && !mission.done ? (

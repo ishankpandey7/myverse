@@ -351,33 +351,45 @@ export default function ThreeIsland(props: Props) {
             className="three-destination-dock"
             aria-label="Island destinations"
           >
-            {(["home", "workshop", "observatory"] as Place[]).map((place) => (
-              <button
-                key={place}
-                disabled={!ready || !!props.placing}
-                onClick={() => engine.current?.travel(place)}
-              >
-                <span>
-                  {place === "home" ? "⌂" : place === "workshop" ? "⚒" : "✧"}
-                </span>
-                <div>
-                  <b>
-                    {place === "home"
-                      ? "Home Base"
-                      : place === "workshop"
-                        ? "Workshop"
-                        : "Observatory"}
-                  </b>
-                  <small>
-                    {place === "home"
-                      ? "Your missions"
-                      : place === "workshop"
-                        ? "Your big ideas"
-                        : "Your little sparks"}
-                  </small>
-                </div>
-              </button>
-            ))}
+            {(["home", "workshop", "observatory", "garden"] as Place[]).map(
+              (place) => (
+                <button
+                  key={place}
+                  disabled={!ready || !!props.placing}
+                  onClick={() => engine.current?.travel(place)}
+                >
+                  <span>
+                    {place === "garden"
+                      ? "❋"
+                      : place === "home"
+                        ? "⌂"
+                        : place === "workshop"
+                          ? "⚒"
+                          : "✧"}
+                  </span>
+                  <div>
+                    <b>
+                      {place === "garden"
+                        ? "Skill Garden"
+                        : place === "home"
+                          ? "Home Base"
+                          : place === "workshop"
+                            ? "Workshop"
+                            : "Observatory"}
+                    </b>
+                    <small>
+                      {place === "garden"
+                        ? "Your living progress"
+                        : place === "home"
+                          ? "Your missions"
+                          : place === "workshop"
+                            ? "Your big ideas"
+                            : "Your little sparks"}
+                    </small>
+                  </div>
+                </button>
+              ),
+            )}
           </nav>
         </div>
         {nearby && !props.placing && (
