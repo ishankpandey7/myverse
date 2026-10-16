@@ -1,6 +1,16 @@
 import * as T from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { createSurfacePalette, worldUV } from "./surfaces.ts";
+import {
+  terrainHeight,
+  createGroundSampler,
+  groundGeometry,
+  groundBoundary,
+  TRAILS,
+  trailDistance,
+} from "./landscape.ts";
+import { makeWoodlandTree } from "./woodland.ts";
+import { batchStaticSurfaces } from "./batching.ts";
 import { makeBeaconLight } from "./atmosphere.ts";
 import type { Surface } from "./surfaces";
 import { LAND, TREES, walkable } from "../navigation.ts";
@@ -94,12 +104,14 @@ function finishModel(root: T.Group) {
     if (!(object instanceof T.Mesh) || !object.userData.surface) return;
     const previous = object.material as T.MeshStandardMaterial;
     object.material = palette(object.userData.surface, previous.color);
+    object.material.vertexColors = previous.vertexColors;
+    object.material.side = previous.side;
     replaced.add(previous);
     if (object.geometry.type === "RoundedBoxGeometry")
       worldUV(object.geometry, 1.4);
   });
   replaced.forEach((m) => m.dispose());
-  return root;
+  return batchStaticSurfaces(root);
 }
 
 export function disposeObject(root: T.Object3D) {
@@ -129,7 +141,9 @@ export function disposeObject(root: T.Object3D) {
         if (uniform.value instanceof T.Texture) textures.add(uniform.value);
     m.dispose();
   });
-  textures.forEach((texture) => texture.dispose());
+  textures.forEach((texture) => {
+    if (!texture.userData.managedByWorld) texture.dispose();
+  });
 }
 
 function pitchedRoof(
@@ -219,6 +233,9 @@ function facetedIsland(
   depth: number,
   color: string,
 ) {
+  const surfaceGeometry = groundGeometry(outline);
+  const boundary = groundBoundary(surfaceGeometry);
+  outline = boundary.map((p) => ({ x: p.x, z: p.z }));
   const vertices: number[] = [],
     colors: number[] = [],
     uvs: number[] = [];
@@ -237,17 +254,23 @@ function facetedIsland(
     const shade = new T.Color(tint);
     for (let i = 0; i < 3; i++) colors.push(shade.r, shade.g, shade.b);
   };
-  const stone = ["#79847e", "#7c817c", "#6b7775", "#818782", "#737e7d"];
+  const stone = ["#c5c8bf", "#bfc2b9", "#c8c9c2", "#b9beb5", "#c1c6bc"];
   // Shared rings retain the exact walking outline while adding eroded rock ledges.
   const rings = [0, 0.1, 0.23, 0.43, 0.65, 0.87, 1.1].map((level, ring) =>
     outline.map((p, i) => {
+      if (ring === 0) return boundary[i].clone();
       const shrink =
         ring === 0
           ? 1
-          : 1 - level * 0.31 + Math.sin(i * 2.4 + ring * 1.9) * 0.025;
+          : 1 -
+            level * 0.31 +
+            Math.sin(i * 0.27 + ring * 1.9) * 0.035 +
+            Math.sin(i * 0.61) * 0.012;
       return new T.Vector3(
         p.x * shrink,
-        ring === 0 ? 0 : -depth * level + Math.sin(i * 2.1 + ring) * 0.18,
+        boundary[i].y * (1 - level / 1.1) -
+          depth * level +
+          Math.sin(i * 0.23 + ring) * 0.25,
         p.z * shrink,
       );
     }),
@@ -281,35 +304,28 @@ function facetedIsland(
   geo.setAttribute("color", new T.Float32BufferAttribute(colors, 3));
   geo.setAttribute("uv", new T.Float32BufferAttribute(uvs, 2));
   geo.computeVertexNormals();
-  const rockMaterial = createSurfacePalette()("rock", "#a9aaa4");
+  const rockMaterial = material("#a9aaa4");
   rockMaterial.vertexColors = true;
   rockMaterial.side = T.DoubleSide;
   const rock = new T.Mesh(geo, rockMaterial);
   rock.castShadow = true;
   rock.receiveShadow = true;
   rock.name = "island-cliff";
+  rock.userData.surface = "rock";
   parent.add(rock);
-  const shape = new T.Shape();
-  outline.forEach((p, i) =>
-    i ? shape.lineTo(p.x, -p.z) : shape.moveTo(p.x, -p.z),
-  );
-  shape.closePath();
-  const ground = piece(parent, new T.ShapeGeometry(shape), color);
-  ground.material.dispose();
-  ground.material = createSurfacePalette()("meadow", color);
-  const positions = ground.geometry.getAttribute("position"),
-    uv = new Float32Array(positions.count * 2);
-  for (let i = 0; i < positions.count; i++) {
-    uv[i * 2] = positions.getX(i) / 4;
-    uv[i * 2 + 1] = positions.getY(i) / 4;
-  }
-  ground.geometry.setAttribute("uv", new T.BufferAttribute(uv, 2));
-  ground.rotation.x = -Math.PI / 2;
+  // The same subdivided boundary closes the sculpted top and cliff without cracks.
+  const ground = piece(parent, surfaceGeometry, color);
+  ground.userData.surface = "meadow";
   ground.receiveShadow = true;
   return ground;
 }
 
-function road(parent: T.Object3D, points: number[][], width = 0.52) {
+function road(
+  parent: T.Object3D,
+  points: number[][],
+  width = 0.52,
+  heightAt = terrainHeight,
+) {
   const curve = new T.CatmullRomCurve3(
     points.map(([x, y]) => {
       const p = toWorld({ x, y });
@@ -323,7 +339,11 @@ function road(parent: T.Object3D, points: number[][], width = 0.52) {
       tangent = curve.getTangent(i / 60);
     const side = new T.Vector3(-tangent.z, 0, tangent.x).multiplyScalar(width);
     for (const sign of [-1, 1])
-      verts.push(p.x + side.x * sign, p.y, p.z + side.z * sign);
+      verts.push(
+        p.x + side.x * sign,
+        heightAt(p.x + side.x * sign, p.z + side.z * sign) + 0.045,
+        p.z + side.z * sign,
+      );
     if (i < 60) {
       const n = i * 2;
       indices.push(n, n + 1, n + 2, n + 1, n + 3, n + 2);
@@ -339,99 +359,28 @@ function road(parent: T.Object3D, points: number[][], width = 0.52) {
   return path;
 }
 
-function pine(parent: T.Object3D, x: number, z: number, scale: number) {
-  const tree = new T.Group();
-  tree.position.set(x, 0, z);
+function pine(
+  parent: T.Object3D,
+  x: number,
+  z: number,
+  scale: number,
+  heightAt = terrainHeight,
+) {
+  const tree = makeWoodlandTree(Math.round((x + 20) * 113 + (z + 20) * 47));
+  tree.position.set(x, heightAt(x, z), z);
   tree.scale.setScalar(scale);
   parent.add(tree);
-  surface(cylinder(tree, "#75634b", 0, 1.7, 0, 0.035, 0.14, 3.4, 12), "wood");
-  const verts: number[] = [];
-  // Branch fans, not stacked cones: their gaps give each tree an irregular silhouette.
-  for (let i = 0; i < 12; i++) {
-    const along = i / 12,
-      width = 0.32 * Math.sin((along + 0.1) * Math.PI);
-    for (const side of [-1, 1])
-      verts.push(
-        along,
-        0.03,
-        0,
-        along - 0.12,
-        -0.03,
-        side * width,
-        along + 0.24,
-        0.07,
-        side * width * 0.3,
-      );
-  }
-  const geometry = new T.BufferGeometry();
-  geometry.setAttribute("position", new T.Float32BufferAttribute(verts, 3));
-  geometry.computeVertexNormals();
-  const foliageMaterial = material("#3b5945");
-  foliageMaterial.side = T.DoubleSide;
-  const needles = new T.InstancedMesh(geometry, foliageMaterial, 80),
-    matrix = new T.Matrix4();
-  let count = 0;
-  for (let tier = 0; tier < 10; tier++)
-    for (let branch = 0; branch < 8; branch++) {
-      const angle = (branch * Math.PI) / 4 + tier * 1.73 + x * 0.2,
-        radius = 1.25 * (1 - tier / 11);
-      const rotation = new T.Quaternion().setFromEuler(
-        new T.Euler(0, angle, -0.16 + Math.sin(branch * 3.1 + tier) * 0.12),
-      );
-      matrix.compose(
-        new T.Vector3(
-          Math.cos(angle) * 0.045,
-          0.8 + tier * 0.27,
-          -Math.sin(angle) * 0.045,
-        ),
-        rotation,
-        new T.Vector3(radius, 1, radius),
-      );
-      needles.setMatrixAt(count, matrix);
-      needles.setColorAt(
-        count++,
-        new T.Color(
-          ["#70907a", "#8caa83", "#4d6b57", "#adc096"][(branch + tier) % 4],
-        ),
-      );
-    }
-  needles.castShadow = needles.receiveShadow = true;
-  tree.add(needles);
 }
 
 export function makeTerrain() {
   const group = new T.Group(),
     top = facetedIsland(group, LAND.map(toWorld), 4.3, "#768364");
   top.name = "walkable-island";
-  road(group, [
-    [303, 516],
-    [430, 499],
-    [520, 500],
-    [695, 528],
-    [815, 492],
-    [980, 460],
-  ]);
-  road(
-    group,
-    [
-      [660, 580],
-      [695, 528],
-      [740, 617],
-    ],
-    0.38,
-  );
-  road(
-    group,
-    [
-      [695, 528],
-      [765, 405],
-      [824, 376],
-    ],
-    0.36,
-  );
+  const heightAt = createGroundSampler(top.geometry);
+  for (const trail of TRAILS) road(group, trail.points, trail.width, heightAt);
   for (const [x, y, s] of TREES) {
     const p = toWorld({ x, y });
-    pine(group, p.x, p.z, s * 0.83);
+    pine(group, p.x, p.z, s * 0.96, heightAt);
   }
   // Shared, instanced meadow tufts keep hundreds of plants to one draw call.
   const bladeVertices: number[] = [];
@@ -455,19 +404,30 @@ export function makeTerrain() {
     new T.Float32BufferAttribute(bladeVertices, 3),
   );
   bladeGeometry.computeVertexNormals();
-  const grass = new T.InstancedMesh(bladeGeometry, material("#6e8050"), 700),
+  const grassMaterial = material("#4f6537");
+  grassMaterial.roughness = 1;
+  grassMaterial.envMapIntensity = 0.15;
+  const grass = new T.InstancedMesh(bladeGeometry, grassMaterial, 1800),
     matrix = new T.Matrix4();
   let count = 0;
   (grass.material as T.MeshStandardMaterial).side = T.DoubleSide;
-  for (let i = 0; i < 2400 && count < 700; i++) {
-    const point = { x: 160 + ((i * 137) % 1060), y: 275 + ((i * 89) % 440) };
+  const random = (n: number) => {
+    const value = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return value - Math.floor(value);
+  };
+  for (let i = 0; i < 9000 && count < 1800; i++) {
+    const point = {
+      x: 160 + random(i + 1) * 1060,
+      y: 275 + random(i + 10337) * 440,
+    };
     if (!walkable(point) || (point.y < 510 && point.x > 370 && point.x < 1050))
       continue;
     const p = toWorld(point);
+    if (trailDistance(p.x, p.z) < 0.7) continue;
     matrix.compose(
-      new T.Vector3(p.x, 0.01, p.z),
+      new T.Vector3(p.x, heightAt(p.x, p.z) + 0.01, p.z),
       new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), i),
-      new T.Vector3(1, 0.7 + (i % 5) * 0.17, 1),
+      new T.Vector3(0.7, 0.3 + random(i + 83) * 0.48, 0.7),
     );
     grass.setMatrixAt(count++, matrix);
   }
@@ -485,14 +445,17 @@ export function makeTerrain() {
   );
   for (let i = 0; i < 120; i++) {
     const angle = i * 2.39996,
-      shore = i < 48;
+      shore = i < 32;
     const point = shore
-      ? { x: 840 + Math.cos(angle) * 118, y: 620 + Math.sin(angle) * 65 }
+      ? {
+          x: 840 + Math.cos(angle) * (112 + (i % 3) * 4),
+          y: 620 + Math.sin(angle) * (59 + (i % 4) * 3),
+        }
       : { x: 160 + ((i * 137) % 1060), y: 295 + ((i * 113) % 440) };
     const p = toWorld(point),
       size = shore ? 0.13 + (i % 4) * 0.025 : 0.06 + (i % 5) * 0.025;
     matrix.compose(
-      new T.Vector3(p.x, 0.02, p.z),
+      new T.Vector3(p.x, heightAt(p.x, p.z) + 0.02, p.z),
       new T.Quaternion().setFromEuler(new T.Euler(i, i * 0.7, i * 0.3)),
       new T.Vector3(size * 1.6, size * 0.75, size),
     );
@@ -505,7 +468,14 @@ export function makeTerrain() {
     const point = { x: 370 + ((i * 61) % 710), y: 325 + ((i * 93) % 365) };
     if (!walkable(point)) continue;
     const p = toWorld(point);
-    sphere(group, i % 2 ? "#c8b6d8" : "#ded2a0", p.x, 0.12, p.z, 0.06);
+    sphere(
+      group,
+      i % 2 ? "#c8b6d8" : "#ded2a0",
+      p.x,
+      heightAt(p.x, p.z) + 0.12,
+      p.z,
+      0.06,
+    );
   }
   for (const [x, y] of [
     [430, 509],
@@ -515,9 +485,10 @@ export function makeTerrain() {
     [760, 676],
   ]) {
     const p = toWorld({ x, y });
-    cylinder(group, "#555867", p.x, 0.5, p.z, 0.035, 0.045, 1, 7);
-    box(group, "#ffd495", p.x, 1.02, p.z, 0.16, 0.26, 0.16, true);
-    cylinder(group, "#746b76", p.x, 1.19, p.z, 0, 0.16, 0.15, 4);
+    const base = heightAt(p.x, p.z);
+    cylinder(group, "#555867", p.x, base + 0.5, p.z, 0.035, 0.045, 1, 7);
+    box(group, "#ffd495", p.x, base + 1.02, p.z, 0.16, 0.26, 0.16, true);
+    cylinder(group, "#746b76", p.x, base + 1.19, p.z, 0, 0.16, 0.15, 4);
   }
   // Background islands provide depth; they are scenery, not advertised destinations.
   for (const [x, y, z, s] of [
@@ -539,7 +510,11 @@ export function makeTerrain() {
     if (mesh instanceof T.Mesh && mesh.userData.surface === "path")
       (mesh.material as T.MeshStandardMaterial).side = T.DoubleSide;
   });
-  return { group, top };
+  const wind: { value: number }[] = [];
+  group.traverse((o) => {
+    if (o.userData.wind) wind.push(o.userData.wind);
+  });
+  return { group, top, wind, heightAt };
 }
 
 function windowPane(

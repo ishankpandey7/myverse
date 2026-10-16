@@ -22,7 +22,7 @@ export default function ThreeIsland(props: Props) {
     selectedProject = useRef(""),
     audio = useRef<ReturnType<typeof createSoundscape> | null>(null);
   const [ready, setReady] = useState(false),
-    [day, setDay] = useState(false),
+    [day, setDay] = useState(true),
     [follow, setFollow] = useState(false),
     [tour, setTour] = useState(false),
     [panning, setPanning] = useState(false),

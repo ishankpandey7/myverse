@@ -4,7 +4,9 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { Sky } from "three/addons/objects/Sky.js";
+import { createNaturalMaterials } from "./natural-materials";
+import { makeReflectivePond } from "./pond";
 import { makePlanet } from "./celestial";
 import { createSurfacePalette } from "./surfaces";
 import { makeWaterfallMist } from "./atmosphere";
@@ -83,6 +85,7 @@ function mountExperience(
   renderer.toneMappingExposure = 1;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = T.PCFShadowMap;
+  renderer.info.autoReset = false;
   const canvas = renderer.domElement;
   canvas.tabIndex = 0;
   canvas.setAttribute("role", "application");
@@ -94,22 +97,37 @@ function mountExperience(
   host.append(canvas);
   const scene = new T.Scene();
   cleanups.push(() => disposeObject(scene));
-  // Reflections give copper, glass and water shape, without loading a remote HDR file.
-  const environmentScene = new RoomEnvironment(),
+  const sky = new Sky();
+  sky.scale.setScalar(300);
+  sky.material.uniforms.turbidity.value = 3;
+  sky.material.uniforms.rayleigh.value = 1.6;
+  sky.material.uniforms.mieCoefficient.value = 0.003;
+  sky.material.uniforms.mieDirectionalG.value = 0.8;
+  sky.material.uniforms.sunPosition.value.set(-12, 22, 10);
+  // The suspended island exposes the sky's lower hemisphere. Give it distant
+  // atmospheric haze instead of the daylight model's unbounded ground radiance.
+  sky.material.fragmentShader = sky.material.fragmentShader.replace(
+    "gl_FragColor = vec4( texColor, 1.0 );",
+    `vec3 lowerHaze = mix(vec3(.10,.17,.21), vec3(.38,.52,.60), smoothstep(-.9,.05,direction.y));
+     texColor = mix(lowerHaze, texColor * .12, smoothstep(-.04,.16,direction.y));
+     gl_FragColor = vec4(min(texColor, vec3(1.0)), 1.0);`,
+  );
+  const environmentScene = new T.Scene(),
     pmrem = new T.PMREMGenerator(renderer);
+  environmentScene.add(sky);
   let environment: T.WebGLRenderTarget;
   try {
-    environment = pmrem.fromScene(environmentScene, 0.06);
+    environment = pmrem.fromScene(environmentScene, 0.04, 0.1, 500);
   } finally {
-    environmentScene.dispose();
     pmrem.dispose();
   }
+  scene.add(sky);
   scene.environment = environment.texture;
-  scene.environmentIntensity = 0.35;
+  scene.environmentIntensity = 0.65;
   cleanups.push(() => environment.dispose());
-  scene.fog = new T.FogExp2("#141d32", 0.006);
-  const camera = new T.PerspectiveCamera(40, 1, 0.1, 160);
-  camera.position.set(18, 22, 29);
+  scene.fog = new T.FogExp2("#a9bcc6", 0.009);
+  const camera = new T.PerspectiveCamera(38, 1, 0.1, 500);
+  camera.position.set(16, 15, 25);
   const controls = new OrbitControls(camera, canvas);
   cleanups.push(() => controls.dispose());
   controls.target.set(0, -0.8, 0);
@@ -121,9 +139,9 @@ function mountExperience(
   controls.zoomToCursor = true;
   controls.update();
   controls.saveState();
-  const ambient = new T.HemisphereLight("#b6c9dc", "#626a51", 0.75);
+  const ambient = new T.HemisphereLight("#d7e4eb", "#77715c", 1.1);
   scene.add(ambient);
-  const sun = new T.DirectionalLight("#f4d2a3", 2.8);
+  const sun = new T.DirectionalLight("#fff0d8", 3.2);
   cleanups.push(() => sun.shadow.dispose());
   sun.position.set(-12, 22, 10);
   sun.castShadow = true;
@@ -134,14 +152,15 @@ function mountExperience(
   sun.shadow.camera.bottom = -16;
   sun.shadow.normalBias = 0.025;
   sun.shadow.bias = -0.00015;
+  sun.shadow.radius = 3;
   scene.add(sun);
-  const rim = new T.DirectionalLight("#86b7cc", 1.7);
+  const rim = new T.DirectionalLight("#c7dbdf", 0.6);
   rim.position.set(16, 10, -18);
   scene.add(rim);
-  const underglow = new T.DirectionalLight("#90b9cc", 0.8);
+  const underglow = new T.DirectionalLight("#a4b7c0", 0.25);
   underglow.position.set(-6, -12, 8);
   scene.add(underglow);
-  const { group: terrain, top: ground } = makeTerrain();
+  const { group: terrain, top: ground, wind, heightAt } = makeTerrain();
   scene.add(terrain, makeHome(), makeObservatory());
   let save = initial,
     projectId = save.projects.find((p) => !p.archived)?.id ?? "";
@@ -160,7 +179,7 @@ function mountExperience(
     ]);
   const position = { ...SPAWN };
   const spawn = toWorld(position);
-  avatar.group.position.set(spawn.x, 0, spawn.z);
+  avatar.group.position.set(spawn.x, heightAt(spawn.x, spawn.z), spawn.z);
   // Stars are one GPU draw call, with deterministic locations across the dome.
   const starVertices: number[] = [];
   for (let i = 0; i < 620; i++) {
@@ -188,9 +207,13 @@ function mountExperience(
     }),
   );
   scene.add(stars);
-  scene.add(makePlanet());
+  const planet = makePlanet();
+  planet.visible = false;
+  scene.add(planet);
+  stars.visible = false;
   const moon = sphere(scene, "#fff0c0", 19, 17, -32, 1.65, true);
   moon.castShadow = false;
+  moon.visible = false;
   const firefliesGeo = new T.BufferGeometry(),
     firefliesData = new Float32Array(65 * 3);
   for (let i = 0; i < 65; i++) {
@@ -238,13 +261,10 @@ function mountExperience(
         "#include <normal_fragment_begin>\nnormal = normalize(normal + vec3(sin(vViewPosition.x * 7.0 + time) * .045, cos(vViewPosition.y * 9.0 - time) * .045, 0.0));",
       );
   };
-  const pond = new T.Mesh(new T.CircleGeometry(2.42, 96), waterMaterial),
+  const pond = makeReflectivePond(),
     pondPoint = toWorld({ x: 840, y: 620 });
-  pond.rotation.x = -Math.PI / 2;
-  pond.scale.y = 0.53;
-  pond.position.set(pondPoint.x, 0.065, pondPoint.z);
-  pond.receiveShadow = true;
-  scene.add(pond);
+  scene.add(pond.object);
+  cleanups.push(() => pond.dispose());
   const fallMaterial = new T.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -267,10 +287,32 @@ function mountExperience(
     new T.Vector3(fallPoint.x, 0.05, fallPoint.z),
   ]);
   const channelMaterial = waterMaterial.clone();
-  const channel = new T.Mesh(
-    new T.TubeGeometry(outlet, 20, 0.24, 6, false),
-    channelMaterial,
+  const channelVertices: number[] = [],
+    channelIndices: number[] = [];
+  for (let i = 0; i <= 40; i++) {
+    const p = outlet.getPoint(i / 40),
+      tangent = outlet.getTangent(i / 40),
+      width = 0.22 + Math.sin(i * 0.6) * 0.035;
+    for (const side of [-1, 1])
+      channelVertices.push(
+        p.x - tangent.z * width * side,
+        0.07,
+        p.z + tangent.x * width * side,
+      );
+    if (i < 40) {
+      const n = i * 2;
+      channelIndices.push(n, n + 1, n + 2, n + 1, n + 3, n + 2);
+    }
+  }
+  const channelGeometry = new T.BufferGeometry();
+  channelGeometry.setAttribute(
+    "position",
+    new T.Float32BufferAttribute(channelVertices, 3),
   );
+  channelGeometry.setIndex(channelIndices);
+  channelGeometry.computeVertexNormals();
+  channelMaterial.side = T.DoubleSide;
+  const channel = new T.Mesh(channelGeometry, channelMaterial);
   scene.add(channel);
   const pondBed = new T.Mesh(
     new T.CircleGeometry(2.53, 80),
@@ -348,6 +390,11 @@ function mountExperience(
   let garden = makeGarden(initial),
     gardenKey = JSON.stringify(garden.userData.stages);
   scene.add(garden);
+  const natural = createNaturalMaterials(() => {
+    needsRender = true;
+  });
+  natural.apply(scene);
+  cleanups.push(() => natural.dispose());
   let route: Point[] = [],
     arrival: (() => void) | null = null,
     paused = false,
@@ -384,13 +431,21 @@ function mountExperience(
     route = next;
     arrival = callback;
     const p = toWorld(next.at(-1)!);
-    destination.position.set(p.x, 0.08, p.z);
+    destination.position.set(p.x, heightAt(p.x, p.z) + 0.08, p.z);
     destination.visible = true;
     routeLine.geometry.dispose();
     routeLine.geometry = new T.BufferGeometry().setFromPoints(
-      [position, ...next].map((point) => {
-        const p = toWorld(point);
-        return new T.Vector3(p.x, 0.09, p.z);
+      [position, ...next].flatMap((point, index, points) => {
+        const previous = points[Math.max(0, index - 1)];
+        const samples = Math.max(1, Math.ceil(distance(previous, point) / 8));
+        return Array.from({ length: samples }, (_, i) => {
+          const t = (i + 1) / samples;
+          const p = toWorld({
+            x: previous.x + (point.x - previous.x) * t,
+            y: previous.y + (point.y - previous.y) * t,
+          });
+          return new T.Vector3(p.x, heightAt(p.x, p.z) + 0.09, p.z);
+        });
       }),
     );
     routeLine.computeLineDistances();
@@ -634,7 +689,10 @@ function mountExperience(
     const p = toWorld(position);
     avatar.group.position.set(
       p.x,
-      moving && !reduced.matches ? Math.abs(Math.sin(elapsed * 13)) * 0.055 : 0,
+      heightAt(p.x, p.z) +
+        (moving && !reduced.matches
+          ? Math.abs(Math.sin(elapsed * 13)) * 0.055
+          : 0),
       p.z,
     );
     if (moving) {
@@ -651,7 +709,7 @@ function mountExperience(
     avatar.leftArm.rotation.x = -swing;
     avatar.rightArm.rotation.x = swing;
     if (follow) {
-      const target = new T.Vector3(p.x, 0.4, p.z),
+      const target = new T.Vector3(p.x, heightAt(p.x, p.z) + 0.4, p.z),
         delta = target.sub(controls.target).multiplyScalar(0.055);
       controls.target.add(delta);
       camera.position.add(delta);
@@ -660,6 +718,10 @@ function mountExperience(
     controls.autoRotateSpeed = 0.25;
     controls.update(dt);
     waterTime.value = reduced.matches ? 0 : elapsed;
+    pond.update(waterTime.value);
+    wind.forEach((uniform) => {
+      uniform.value = waterTime.value;
+    });
     fallMaterial.uniforms.time.value = reduced.matches ? 0 : elapsed;
     mist.update(reduced.matches ? 0 : elapsed);
     if (story.light)
@@ -693,11 +755,19 @@ function mountExperience(
         .join(","),
       dragMode: panning ? "pan" : "rotate",
       gardenStages: gardenKey,
+      naturalMaterials: JSON.stringify(natural.status),
+      groundHeight: heightAt(p.x, p.z).toFixed(3),
     };
     for (const [key, value] of Object.entries(state))
       if (canvas.dataset[key] !== value) canvas.dataset[key] = value;
+    renderer.info.reset();
     if (eco) renderer.render(scene, camera);
     else composer.render();
+    canvas.dataset.drawCalls = String(renderer.info.render.calls);
+    canvas.dataset.triangles = String(renderer.info.render.triangles);
+    canvas.dataset.gpuTextures = String(renderer.info.memory.textures);
+    canvas.dataset.motionTime = waterTime.value.toFixed(2);
+    canvas.dataset.reflections = String(!eco);
   }
   frame = requestAnimationFrame(animate);
   function update(next: Save) {
@@ -744,6 +814,7 @@ function mountExperience(
       scene.remove(workshop);
       disposeObject(workshop);
       workshop = makeWorkshop(next, projectId);
+      natural.apply(workshop);
       scene.add(workshop);
       projectKey = pk;
     }
@@ -797,7 +868,7 @@ function mountExperience(
       controls.update();
       controls.target.set(0, -0.8, 0);
       camera.position
-        .set(18, 22, 29)
+        .set(16, 15, 25)
         .sub(controls.target)
         .multiplyScalar(framingScale)
         .add(controls.target);
@@ -808,18 +879,25 @@ function mountExperience(
       );
     },
     sky(day: boolean) {
-      ambient.color.set(day ? "#d7e6e3" : "#b6c9dc");
-      ambient.intensity = day ? 1.15 : 0.75;
-      sun.color.set(day ? "#ffe5b4" : "#f4d2a3");
-      sun.intensity = day ? 3.5 : 2.8;
-      rim.intensity = day ? 0.9 : 1.7;
-      scene.environmentIntensity = day ? 0.55 : 0.35;
+      sky.visible = day;
+      planet.visible = !day;
+      moon.visible = !day;
+      (scene.fog as T.FogExp2).color.set(day ? "#a9bcc6" : "#141d32");
+      ambient.color.set(day ? "#d7e4eb" : "#9caec5");
+      ambient.intensity = day ? 1.1 : 0.55;
+      sun.color.set(day ? "#fff0d8" : "#d4deec");
+      sun.intensity = day ? 3.2 : 1.1;
+      rim.intensity = day ? 0.6 : 0.55;
+      scene.environmentIntensity = day ? 0.65 : 0.2;
       stars.visible = !day;
-      waterMaterial.color.set(day ? "#477c74" : "#355c5d");
+      pond.sky(day);
+      waterMaterial.color.set(day ? "#3a6558" : "#2c444b");
       channelMaterial.color.copy(waterMaterial.color);
+      needsRender = true;
     },
     eco(value: boolean) {
       eco = value;
+      pond.eco(value);
       mist.object.visible = !value;
       renderer.setPixelRatio(value ? 1 : Math.min(devicePixelRatio, 1.5));
       composer.setPixelRatio(renderer.getPixelRatio());

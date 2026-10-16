@@ -5,6 +5,7 @@ export type Surface =
   | "rock"
   | "stone"
   | "wood"
+  | "bark"
   | "slate"
   | "path"
   | "metal";
@@ -51,7 +52,7 @@ function surfaceMaps(kind: Surface) {
         const strata = Math.sin(v * Math.PI * 24 + broad * 3);
         height = medium * 0.5 + fine * 0.25 + strata * 0.12 + 0.13;
         shade = 0.52 + height * 0.48;
-      } else if (kind === "wood") {
+      } else if (kind === "wood" || kind === "bark") {
         const grain = Math.sin(u * Math.PI * 64 + broad * 9 + medium * 2);
         height = 0.45 + grain * 0.12 + fine * 0.15;
         shade = 0.58 + height * 0.42;
