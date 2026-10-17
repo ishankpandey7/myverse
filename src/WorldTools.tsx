@@ -1,30 +1,62 @@
-import { useEffect, useRef, useState } from "react";
-import { BEFORE_RESTORE, GUIDE_KEY } from "./polish";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { GUIDE_KEY } from "./polish";
 import { decodeSave, totalXP } from "./game";
 import type { Save } from "./game";
 import { galleryProgress } from "./growth";
+import type { WorldPreview, SaveResult } from "./saveRepository";
+import { downloadWorld } from "./worldBackup";
 import "./polish.css";
 export function WorldTools({
   mode,
   save,
+  onPreview,
   onRestore,
   onClose,
 }: {
   mode: "guide" | "backup";
   save: Save;
-  onRestore: (save: Save) => string;
+  onPreview: (source: Save | "recovery") => Promise<WorldPreview>;
+  onRestore: (preview: WorldPreview) => Promise<SaveResult>;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null),
     file = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(0),
     [backupText, setBackupText] = useState(""),
-    [pending, setPending] = useState<Save | null>(null),
+    [pending, setPending] = useState<WorldPreview | null>(null),
+    [working, setWorking] = useState(false),
     [message, setMessage] = useState("");
+  const request = useRef(0);
+  const cancelPendingPreview = useCallback(() => {
+    request.current++;
+  }, []);
+  async function preview(source: Save | "recovery") {
+    const id = ++request.current;
+    setWorking(true);
+    setPending(null);
+    try {
+      const value = await onPreview(source);
+      if (request.current === id) {
+        setPending(value);
+        setMessage("");
+      }
+    } catch (error) {
+      if (request.current === id)
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "This backup could not be previewed.",
+        );
+    } finally {
+      if (request.current === id) setWorking(false);
+    }
+  }
   useEffect(() => {
     if (dialog.current && !dialog.current.open) dialog.current.showModal();
-  }, []);
+    return cancelPendingPreview;
+  }, [cancelPendingPreview]);
   function close() {
+    request.current++;
     if (mode === "guide")
       try {
         localStorage.setItem(GUIDE_KEY, "yes");
@@ -34,14 +66,7 @@ export function WorldTools({
     onClose();
   }
   function download() {
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(save, null, 2)], { type: "application/json" }),
-    );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `myverse-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadWorld(save);
     setMessage(
       "Backup download requested. Keep the file somewhere you can find it.",
     );
@@ -153,22 +178,30 @@ export function WorldTools({
             <input
               ref={file}
               type="file"
+              disabled={working}
               accept=".json,application/json"
               aria-label="Choose MyVerse backup"
               onChange={async (e) => {
-                const chosen = e.target.files?.[0];
+                const input = e.currentTarget,
+                  chosen = input.files?.[0];
+                const id = ++request.current;
                 setPending(null);
                 setMessage("");
                 if (!chosen) return;
+                setWorking(true);
                 try {
                   if (chosen.size > 10 * 1024 * 1024) throw new Error();
-                  setPending(decodeSave(await chosen.text()));
+                  const text = await chosen.text();
+                  if (id === request.current) await preview(decodeSave(text));
                 } catch {
-                  setMessage(
-                    "This file is not a supported MyVerse backup (maximum 10 MB). Your world has not changed.",
-                  );
+                  if (id === request.current)
+                    setMessage(
+                      "This file is not a supported MyVerse backup (maximum 10 MB). Your world has not changed.",
+                    );
+                } finally {
+                  if (id === request.current) setWorking(false);
                 }
-                e.target.value = "";
+                input.value = "";
               }}
             />
             <details className="paste-backup">
@@ -182,11 +215,10 @@ export function WorldTools({
               />
               <button
                 className="tools-secondary"
-                disabled={!backupText.trim()}
+                disabled={working || !backupText.trim()}
                 onClick={() => {
                   try {
-                    setPending(decodeSave(backupText));
-                    setMessage("");
+                    void preview(decodeSave(backupText));
                   } catch {
                     setPending(null);
                     setMessage(
@@ -200,19 +232,8 @@ export function WorldTools({
             </details>
             <button
               className="tools-secondary"
-              onClick={() => {
-                try {
-                  const raw = localStorage.getItem(BEFORE_RESTORE);
-                  if (!raw) {
-                    setMessage("No previous restore to recover yet.");
-                    return;
-                  }
-                  setPending(decodeSave(raw));
-                  setMessage("");
-                } catch {
-                  setMessage("The previous world could not be read.");
-                }
-              }}
+              disabled={working}
+              onClick={() => void preview("recovery")}
             >
               Recover world from before last restore
             </button>
@@ -221,15 +242,16 @@ export function WorldTools({
             <div className="restore-preview">
               <h3>Review incoming world</h3>
               <p>
-                <strong>{pending.avatar.name}</strong> ·{" "}
-                {pending.missions.length} missions · {pending.ideas.length}{" "}
-                ideas · {pending.projects.length} projects · {totalXP(pending)}{" "}
-                XP
+                <strong>{pending.save.avatar.name}</strong> ·{" "}
+                {pending.save.missions.length} missions ·{" "}
+                {pending.save.ideas.length} ideas ·{" "}
+                {pending.save.projects.length} projects ·{" "}
+                {totalXP(pending.save)} XP
               </p>
               <p>
-                {pending.missions.filter((m) => m.skill).length} missions
+                {pending.save.missions.filter((m) => m.skill).length} missions
                 assigned to growth paths ·{" "}
-                {galleryProgress(pending).filter((a) => a.earned).length}/7
+                {galleryProgress(pending.save).filter((a) => a.earned).length}/7
                 garden milestones earned
               </p>
               <p>
@@ -240,19 +262,24 @@ export function WorldTools({
               <div className="tools-actions">
                 <button
                   className="tools-secondary"
+                  disabled={working}
                   onClick={() => setPending(null)}
                 >
                   Cancel
                 </button>
                 <button
                   className="primary-action"
-                  onClick={() => {
-                    const error = onRestore(pending);
+                  disabled={working}
+                  onClick={async () => {
+                    setWorking(true);
+                    const result = await onRestore(pending);
                     setMessage(
-                      error ||
-                        "World restored. Your previous world is available using recovery above.",
+                      result.ok
+                        ? "World restored. Your previous world is available using recovery above."
+                        : result.message,
                     );
-                    if (!error) setPending(null);
+                    if (result.ok || result.stale) setPending(null);
+                    setWorking(false);
                   }}
                 >
                   Replace world with this backup
@@ -261,7 +288,7 @@ export function WorldTools({
             </div>
           )}
           <p className="tools-message" role="status">
-            {message}
+            {working ? "Checking and saving safely…" : message}
           </p>
         </>
       )}

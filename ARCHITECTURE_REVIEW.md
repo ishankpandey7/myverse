@@ -1,6 +1,8 @@
 # MyVerse architecture review
 
-Reviewed 2026-10-16 against `553caa7` on `main`. Planning document: the changes below are proposed, not implemented. The owner has approved the new natural landscape direction.
+Reviewed 2026-10-16 against `553caa7` on `main`. The audit below records that baseline; execution progress is tracked here. The owner has approved the new natural landscape direction.
+
+**2026-10-17 execution checkpoint:** milestone A is implemented in `saveRepository.ts`, `useGameSession.ts`, `SaveStatus.tsx` and the coordinated WorldTools flow. Seventeen new tests cover concurrency and recovery; the suite has 81 tests. Browser checks exercised two real competing tabs, conflict review/download/load, retained-session recovery, stale confirmation, file/pasted restore, newer-format protection, Focus reset, reload and a narrow CSS viewport. See ROADMAP.md for evidence and limits. Milestones B–D remain proposed. The next scoped implementation is B; do not combine the shortlist/schema migration with its rendering work.
 
 **Recommendation:** strengthen save safety, remove unnecessary scene work, then connect the existing features into a short daily routine. Keep React, TypeScript, Vite, Three.js, the shared mission model and Classic view. The current scale does not justify a framework rewrite, a generic game engine or separate services.
 
@@ -109,6 +111,6 @@ Import a local world into an account through a preview, preserve local recovery,
 
 ## Sol 6.1 handoff
 
-Start with **milestone A only**. Re-read AGENTS.md and this review, verify the repository state, add the failing concurrency regression, then implement the smallest save-session/repository boundary that meets the acceptance checks. Keep current v3 and all visible features working. Do not implement B–D opportunistically in the same commit. Run appropriate tests, production build, strict lint and isolated browser QA; commit/push the verified milestone without force-push. Report remaining limitations explicitly.
+Milestone A is complete. For the next execution pass, start with **milestone B only**: re-read AGENTS.md and this review, verify the repository state, and first narrow the Workshop's visual update selector with meaningful regression coverage. Keep v3 saves and the new save coordinator intact. Establish a measured scene baseline before choosing asset/quality changes; avoid inventing performance results. Do not add C–D opportunistically. Run appropriate tests, production build, strict lint and isolated browser QA; commit/push the verified milestone without force-push. Report remaining limitations explicitly.
 
 Use Astra for architecture choices, migration/conflict design and review at milestone boundaries; use Sol for the scoped implementation, tests and delivery. This is a workflow recommendation, not a claim that either model is restricted to one kind of work. [Official model guidance](https://developers.openai.com/api/docs/guides/latest-model) positions Astra for the most demanding work and Sol 6.1 for complex work with a different speed/cost tradeoff; API pricing does not translate directly into a ChatGPT usage-window percentage.

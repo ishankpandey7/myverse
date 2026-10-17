@@ -1,0 +1,75 @@
+<!doctype html><meta charset="utf-8" /><title>MyVerse disposable save QA</title>
+<style>
+  body {
+    font: 16px system-ui;
+    background: #15272b;
+    color: #eff8ed;
+    padding: 30px;
+  }
+  button {
+    padding: 14px;
+    margin: 8px;
+  }
+  pre {
+    white-space: pre-wrap;
+  }
+</style>
+<h1>Disposable localhost save QA</h1>
+<p id="lock">Lock released</p>
+<button id="hold">Hold save lock</button
+><button id="release">Release save lock</button>
+<button id="newer">Simulate newer save</button
+><button id="refresh">Refresh stored evidence</button>
+<pre id="evidence"></pre>
+<script type="module">
+  if (location.hostname !== "localhost")
+    throw new Error("Disposable localhost only");
+  let release;
+  document.querySelector("#hold").onclick = () =>
+    navigator.locks.request("myverse-world-write", async () => {
+      document.querySelector("#lock").textContent = "Lock held";
+      await new Promise((r) => (release = r));
+      document.querySelector("#lock").textContent = "Lock released";
+    });
+  document.querySelector("#release").onclick = () => release?.();
+  document.querySelector("#newer").onclick = () => {
+    const value = JSON.parse(localStorage.getItem("myverse-save-v1"));
+    localStorage.setItem(
+      "myverse-save-v1",
+      JSON.stringify({ ...value, version: 99 }),
+    );
+    show();
+  };
+  function show() {
+    document.querySelector("#evidence").textContent = JSON.stringify(
+      Object.fromEntries(
+        [
+          "myverse-save-v1",
+          "myverse-before-restore",
+          "myverse-raw-before-restore",
+          "myverse-focus-v1",
+        ].map((k) => [k, localStorage.getItem(k)]),
+      ),
+      null,
+      2,
+    );
+  }
+  window.addEventListener("storage", show);
+  document.querySelector("#refresh").onclick = show;
+  show();
+  // An iframe gives a deterministic CSS viewport when the browser provider's
+  // optional viewport override is unavailable. This does not emulate physical touch.
+  if (new URL(location.href).searchParams.has("phone")) {
+    document.querySelector("h1").textContent =
+      "393px CSS viewport — disposable QA";
+    document
+      .querySelectorAll("button,pre,#lock")
+      .forEach((el) => (el.hidden = true));
+    const frame = document.createElement("iframe");
+    frame.title = "MyVerse phone QA";
+    frame.src = "/";
+    frame.style =
+      "width:393px;height:852px;border:1px solid #9cbfb1;display:block";
+    document.body.append(frame);
+  }
+</script>

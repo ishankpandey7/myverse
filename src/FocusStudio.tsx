@@ -75,6 +75,18 @@ export function FocusStudio({
     }
   }
   useEffect(() => {
+    const current = sessionRef.current;
+    if (
+      current?.missionId &&
+      !save.missions.some((mission) => mission.id === current.missionId)
+    ) {
+      change(null);
+      setStorageError(
+        "The attached mission is no longer in the saved world. Choose a new focus session.",
+      );
+    }
+  }, [save.missions]);
+  useEffect(() => {
     const element = dialog.current;
     if (open && element && !element.open) element.showModal();
     else if (!open && element?.open) element.close();

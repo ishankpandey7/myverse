@@ -1,0 +1,119 @@
+.save-status {
+  padding: 12px 20px;
+  border: 1px solid #abc5ba25;
+  background: #15282b70;
+  border-radius: 14px;
+  color: #c8dfd3;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.save-status p {
+  margin: 0;
+}
+.app-shell > .save-status {
+  margin: 0 20px;
+}
+.save-status.has-problem {
+  border-color: #e7be7459;
+  background: #30271e;
+  color: #f5dfba;
+}
+.save-status-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.save-status-actions button {
+  padding: 9px 12px;
+  border: 1px solid #b9cec145;
+  border-radius: 9px;
+  color: #e4eee8;
+  background: #263b3e;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.save-status-actions button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.save-review {
+  width: min(560px, calc(100vw - 32px));
+  box-sizing: border-box;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border: 1px solid #a8c9b94d;
+  border-radius: 20px;
+  padding: 32px;
+  background: #14292c;
+  color: #e3ede6;
+}
+.save-review::backdrop {
+  background: #071114bb;
+}
+.save-review h2 {
+  margin: 12px 0 20px;
+  font:
+    28px Georgia,
+    serif;
+  color: #f0dfc1;
+}
+.save-review p {
+  margin: 12px 0;
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.save-review-close {
+  float: right;
+  border: 0;
+  border-radius: 8px;
+  background: #ffffff12;
+  color: #eff5ef;
+  padding: 8px 12px;
+}
+.save-review .save-status-actions {
+  margin-top: 20px;
+}
+.save-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.save-world-summary {
+  padding: 14px;
+  border: 1px solid #b9cec12b;
+  border-radius: 12px;
+  background: #ffffff04;
+  min-width: 0;
+}
+.save-world-summary h3 {
+  margin: 0;
+  color: #e8cea5;
+  font-size: 14px;
+}
+.save-world-summary ul {
+  padding-left: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.save-world-summary small {
+  color: #b8c9c0;
+}
+.save-status button:focus-visible {
+  outline: 3px solid #ebc88d;
+  outline-offset: 3px;
+}
+@media (max-width: 500px) {
+  .save-comparison {
+    grid-template-columns: 1fr;
+  }
+  .save-review {
+    padding: 22px;
+  }
+  .save-status-actions button {
+    min-height: 44px;
+  }
+}

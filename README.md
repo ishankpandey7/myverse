@@ -68,6 +68,16 @@ Tests also cover alignment between 3D ground and navigation, Workshop/garden gro
 
 GitHub stores code and progress history. Vercel is the planned host; Supabase is the planned authentication and cloud database service. Neither is needed to run this local checkpoint. No external account or paid service is created by the starter.
 
+## Safe saves across tabs
+
+`useGameSession.ts` subscribes React to `saveRepository.ts`, which coordinates world writes using one origin-scoped Web Lock. Inside the lock, an ordinary save validates the latest stored world and compares it with the session's exact accepted raw base. A stale tab keeps its local work and shows a conflict instead of replacing newer progress. Clean tabs accept external changes; existing form drafts stay local. Saves, original migration backups, explicit restore and one-level recovery retain the v3 format and `myverse-save-v1` key.
+
+The save banner reports pending/failed saves and offers session download, saved-world review and retry. Review shows mission titles and progress for both worlds. Explicitly loading over unsaved work first preserves that session in browser recovery. Restore and saved-world previews are rechecked under the lock; a changed world requires another preview. Replacement clears the tab's Focus timer before remounting it, while a clean external update only clears an attached timer if its mission disappeared. Unsaved/pending changes also request the browser's normal leave-page warning.
+
+Without Web Locks, durable writes remain blocked and session editing/export remain available. The lock protects cooperating tabs on the same origin; older clients that bypass it are outside the guarantee. `localhost:5173` and `127.0.0.1:5173` remain separate worlds. This feature does not provide cross-device or cloud backup.
+
+For disposable browser QA, open `/tests/browser/save-coordination.html` on localhost while running Vite. Its Hold/Release controls deliberately delay the shared lock so two real tabs can enqueue competing saves; its newer-save control deliberately writes version 99 to the QA world. Use `?phone=1` for a 393px CSS frame. These development-only fixtures are not copied into `dist`. Never use the owner's 127.0.0.1 world for this workflow.
+
 Vercel settings: Vite framework, `npm run build`, output directory `dist`. The app currently uses no client-side routes. Add SPA fallback configuration when routes are introduced. Future Supabase access must use per-user row-level security; server secrets must never enter browser code or Git.
 
 ## Progress workflow

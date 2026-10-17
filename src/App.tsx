@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import "./App.css";
 import { WorldExperience } from "./world/WorldExperience";
@@ -10,7 +10,6 @@ import { Workshop } from "./Workshop";
 import { EditableTitle } from "./EditableTitle";
 import { WorldTools } from "./WorldTools";
 import { FocusStudio } from "./FocusStudio";
-import { storeFocus } from "./focus";
 import { MissionSearch } from "./MissionSearch";
 import { GrowthStudio } from "./GrowthStudio";
 import { SkillBadge } from "./GrowthArt";
@@ -24,12 +23,11 @@ import {
 import type { AchievementId } from "./growth";
 import { collectFragment, lightBeacon, FRAGMENTS } from "./starfall";
 import type { FragmentId } from "./starfall";
-import { renameItem, restoreGame, needsGuide } from "./polish";
+import { renameItem, needsGuide } from "./polish";
+import { useGameSession } from "./useGameSession";
+import { SaveStatus } from "./SaveStatus";
 import type { EditableKind } from "./polish";
 import {
-  freshSave,
-  loadGame,
-  persistGame,
   completeMission,
   promoteIdea,
   projectFromIdea,
@@ -42,17 +40,6 @@ import {
 } from "./game";
 import type { Save, RewardId, PlotId } from "./game";
 
-function readCurrentGame() {
-  try {
-    return loadGame(localStorage);
-  } catch {
-    return {
-      save: freshSave(),
-      error: "Saving is unavailable in this browser. Keep this tab open.",
-    };
-  }
-}
-
 function App() {
   const journalRef = useRef<HTMLElement>(null);
   const [journalOpen, setJournalOpen] = useState(false);
@@ -61,15 +48,21 @@ function App() {
   );
   const [homeOpen, setHomeOpen] = useState(false);
   const [focusOpen, setFocusOpen] = useState(false);
+  const [saveReviewOpen, setSaveReviewOpen] = useState(false);
   const [gardenOpen, setGardenOpen] = useState(false);
   const [earnedMoment, setEarnedMoment] = useState<AchievementId | null>(null);
-  const [restoreEpoch, setRestoreEpoch] = useState(0);
+  const {
+    session,
+    save,
+    status: saveStatus,
+    message: saveMessage,
+    epoch: restoreEpoch,
+  } = useGameSession();
+  const saveError =
+    saveStatus === "saved" || saveStatus === "saving" ? "" : saveMessage;
   const [workshopProject, setWorkshopProject] = useState("");
   const [workshopOpen, setWorkshopOpen] = useState(false);
   const [observatoryOpen, setObservatoryOpen] = useState(false);
-  const [loaded] = useState(readCurrentGame);
-  const [save, setSave] = useState<Save>(loaded.save);
-  const saveRef = useRef(save);
   const [atelier, setAtelier] = useState<"character" | "collection" | null>(
     null,
   );
@@ -91,10 +84,27 @@ function App() {
     setDrafts((previous) => ({ ...previous, [tab]: value }));
   }
   const [notice, setNotice] = useState("");
-  const [saveError, setSaveError] = useState(loaded.error);
   const completed = save.missions.filter((item) => item.done).length;
   const xp = totalXP(save);
   const level = Math.floor(xp / 100) + 1;
+
+  const previousEpoch = useRef(restoreEpoch);
+  useEffect(() => {
+    if (previousEpoch.current === restoreEpoch) return;
+    previousEpoch.current = restoreEpoch;
+    setFocusOpen(false);
+    setGardenOpen(false);
+    setHomeOpen(false);
+    setObservatoryOpen(false);
+    setWorkshopOpen(false);
+    setAtelier(null);
+    setEarnedMoment(null);
+    setDrafts({ missions: "", ideas: "" });
+    setMissionSearch("");
+    setNotice("");
+    setNewReward(null);
+    setPlacing(null);
+  }, [restoreEpoch]);
 
   function enterPlace(place: Place, projectId = "") {
     if (place === "garden") {
@@ -118,34 +128,28 @@ function App() {
   }
 
   function updateSave(update: (previous: Save) => Save) {
+    if (session.getSnapshot().busy) return;
     const known = new Set(
-      galleryProgress(saveRef.current)
+      galleryProgress(session.getSnapshot().save)
         .filter((a) => a.earned)
         .map((a) => a.id),
     );
     const next = recordAchievements(
-      update(recordAchievements(saveRef.current)),
+      update(recordAchievements(session.getSnapshot().save)),
     );
-    if (next === saveRef.current) return;
+    if (next === session.getSnapshot().save) return;
+    const previousCount = session.getSnapshot().save.missions.length;
+    if (!session.update(() => next)) return;
     const newlyEarned = next.growth?.earned.filter((id) => !known.has(id));
     if (newlyEarned?.length)
       setEarnedMoment(newlyEarned[newlyEarned.length - 1]);
-    if (next.missions.length > saveRef.current.missions.length) {
+    if (next.missions.length > previousCount) {
       setMissionSearch("");
-    }
-    saveRef.current = next;
-    setSave(next);
-    try {
-      setSaveError(persistGame(localStorage, next));
-    } catch {
-      setSaveError(
-        "Saving is unavailable. Keep this tab open to keep your changes.",
-      );
     }
   }
 
   function beginPlacement(id: RewardId) {
-    if (!unlockedRewards(saveRef.current).includes(id)) return;
+    if (!unlockedRewards(session.getSnapshot().save).includes(id)) return;
     setAtelier(null);
     setPlacing(id);
     requestAnimationFrame(() => {
@@ -166,8 +170,8 @@ function App() {
   }
   function finishPlacement(plot: PlotId) {
     if (!placing) return;
-    const next = placeReward(saveRef.current, placing, plot);
-    if (next === saveRef.current) return;
+    const next = placeReward(session.getSnapshot().save, placing, plot);
+    if (next === session.getSnapshot().save) return;
     updateSave(() => next);
     setNotice(
       REWARDS[placing].name + " placed. A little more you, a little more home.",
@@ -210,7 +214,7 @@ function App() {
   }
 
   function complete(id: string) {
-    const previous = saveRef.current,
+    const previous = session.getSnapshot().save,
       next = completeMission(previous, id);
     if (next === previous) return;
     const unlocked = unlockedRewards(next).find(
@@ -230,8 +234,8 @@ function App() {
   }
 
   function makeProject(id: string) {
-    const next = projectFromIdea(saveRef.current, id);
-    if (next === saveRef.current) return;
+    const next = projectFromIdea(session.getSnapshot().save, id);
+    if (next === session.getSnapshot().save) return;
     updateSave(() => next);
     setObservatoryOpen(false);
     setJournalOpen(false);
@@ -322,6 +326,13 @@ function App() {
           ↓ Backup & restore
         </button>
       </nav>
+      <SaveStatus
+        session={session}
+        onReview={(open) => {
+          setSaveReviewOpen(open);
+          if (!open) focusIsland();
+        }}
+      />
       <main key={restoreEpoch}>
         <WorldExperience
           save={save}
@@ -332,6 +343,7 @@ function App() {
           decorations={save.decorations}
           placing={placing}
           paused={
+            saveReviewOpen ||
             gardenOpen ||
             focusOpen ||
             atelier !== null ||
@@ -578,11 +590,6 @@ function App() {
           <p className="notice" role="status">
             {notice}
           </p>
-          <p className="save-note" role={saveError ? "alert" : undefined}>
-            {saveError
-              ? saveError + " Changes in this tab are not saved yet."
-              : "Saved in this browser · Cloud sync comes later"}
-          </p>
         </aside>
       </main>
       {toolsOpen && (
@@ -593,33 +600,8 @@ function App() {
             setToolsOpen(null);
             focusIsland();
           }}
-          onRestore={(incoming) => {
-            let error: string;
-            try {
-              error = restoreGame(localStorage, incoming, saveRef.current);
-            } catch {
-              return "Browser storage is unavailable. Your world has not changed.";
-            }
-            if (error) return error;
-            try {
-              storeFocus(sessionStorage, null);
-            } catch {
-              /* Focus recovery is optional. */
-            }
-            setFocusOpen(false);
-            setGardenOpen(false);
-            setEarnedMoment(null);
-            saveRef.current = incoming;
-            setRestoreEpoch((epoch) => epoch + 1);
-            setSave(incoming);
-            setSaveError("");
-            setDrafts({ missions: "", ideas: "" });
-            setMissionSearch("");
-            setNotice("");
-            setNewReward(null);
-            setPlacing(null);
-            return "";
-          }}
+          onPreview={session.preview}
+          onRestore={session.restore}
         />
       )}
       {workshopOpen && (
