@@ -46,52 +46,59 @@ export default function ThreeIsland(props: Props) {
   useLayoutEffect(() => {
     live.current = props;
     selectedProject.current = project?.id ?? "";
-    engine.current?.update(props.save);
   }, [props, project?.id]);
+  useLayoutEffect(() => {
+    engine.current?.update(props.save, project?.id ?? "");
+  }, [props.save, project?.id, ready]);
   useEffect(() => {
     const initialise = requestAnimationFrame(() => {
       if (!host.current) return;
       try {
-        engine.current = createExperience(host.current, live.current.save, {
-          visit: (place) =>
-            live.current.onVisit(
-              place,
-              place === "workshop" ? selectedProject.current : undefined,
-            ),
-          discover: (id) => {
-            const current = live.current;
-            if (id === "beacon") {
-              if (current.save.starfall?.beaconLit)
-                setMessage(
-                  "A light you brought into this world. Yours to keep.",
-                );
-              else if (canLightBeacon(current.save)) {
-                current.onLightBeacon();
-                audio.current?.chime();
-                setCelebrating(true);
-                setMessage("");
-              } else
-                setMessage(
-                  current.save.starfall?.fragments.length === 3
-                    ? "Complete one real-world mission, then return to awaken your beacon."
-                    : "Find the three fallen fragments. Each one has a memory waiting for you.",
-                );
-            } else {
-              if (!current.save.starfall?.fragments.includes(id)) {
-                current.onDiscover(id);
-                audio.current?.chime();
+        engine.current = createExperience(
+          host.current,
+          live.current.save,
+          {
+            visit: (place) =>
+              live.current.onVisit(
+                place,
+                place === "workshop" ? selectedProject.current : undefined,
+              ),
+            discover: (id) => {
+              const current = live.current;
+              if (id === "beacon") {
+                if (current.save.starfall?.beaconLit)
+                  setMessage(
+                    "A light you brought into this world. Yours to keep.",
+                  );
+                else if (canLightBeacon(current.save)) {
+                  current.onLightBeacon();
+                  audio.current?.chime();
+                  setCelebrating(true);
+                  setMessage("");
+                } else
+                  setMessage(
+                    current.save.starfall?.fragments.length === 3
+                      ? "Complete one real-world mission, then return to awaken your beacon."
+                      : "Find the three fallen fragments. Each one has a memory waiting for you.",
+                  );
+              } else {
+                if (!current.save.starfall?.fragments.includes(id)) {
+                  current.onDiscover(id);
+                  audio.current?.chime();
+                }
+                setMessage(FRAGMENTS[id].memory);
               }
-              setMessage(FRAGMENTS[id].memory);
-            }
+            },
+            hint: setHint,
+            nearby: setNearby,
+            manualCamera: () => {
+              setTour(false);
+              setFollow(false);
+            },
+            error: (message) => live.current.onUnavailable(message),
           },
-          hint: setHint,
-          nearby: setNearby,
-          manualCamera: () => {
-            setTour(false);
-            setFollow(false);
-          },
-          error: (message) => live.current.onUnavailable(message),
-        });
+          selectedProject.current,
+        );
         engine.current.pause(!!live.current.placing || live.current.paused);
         setReady(true);
       } catch {
@@ -118,9 +125,6 @@ export default function ThreeIsland(props: Props) {
   useEffect(() => {
     engine.current?.pause(props.paused || !!props.placing || celebrating);
   }, [props.paused, props.placing, celebrating, ready]);
-  useEffect(() => {
-    engine.current?.setProject(project?.id ?? "");
-  }, [project?.id, ready]);
   function discover(id: FragmentId | "beacon") {
     setStoryOpen(false);
     setMessage("");

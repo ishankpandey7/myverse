@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>MyVerse rendering benchmark</title>
+    <style>
+      body {
+        margin: 0;
+        background: #14272d;
+        color: #e4eee8;
+        font: 14px system-ui;
+      }
+      header {
+        padding: 16px;
+      }
+      h1 {
+        font-size: 21px;
+        margin: 0 0 8px;
+      }
+      button {
+        padding: 9px 12px;
+        margin: 4px;
+        border: 1px solid #8fa89e;
+        background: #2b4346;
+        color: inherit;
+        border-radius: 7px;
+      }
+      #world {
+        width: 100%;
+        height: 640px;
+      }
+      #world canvas {
+        display: block;
+      }
+      pre {
+        padding: 16px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      button:disabled {
+        opacity: 0.5;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>MyVerse rendering benchmark — in-memory QA</h1>
+      <p>
+        No browser saves are read or written. Fixed 1280×640 scene, seeded
+        projects, Daybreak. Frame cadence is not GPU timing.
+      </p>
+      <button id="profile">Profile 40 unrelated edits</button
+      ><button id="sample">Sample fixed orbit (12 s)</button
+      ><button id="eco">Toggle Eco</button
+      ><button id="stage">Advance selected build</button
+      ><button id="select">Switch project</button
+      ><button id="cycles">Cycle renderer 10 times</button
+      ><button id="refresh">Refresh diagnostics</button>
+      <p id="status">Starting…</p>
+      <p id="summary"></p>
+    </header>
+    <div id="world"></div>
+    <pre id="results"></pre>
+    <script type="module">
+      import { createExperience } from "/src/world/three/experience.ts";
+      import {
+        freshSave,
+        createProject,
+        addMilestone,
+        addProjectTask,
+        completeMission,
+      } from "/src/game.ts";
+      if (location.hostname !== "localhost")
+        throw new Error("Disposable localhost only");
+      const host = document.querySelector("#world"),
+        results = document.querySelector("#results"),
+        status = document.querySelector("#status");
+      // Use a deterministic viewport independent of the browser provider's optional emulation.
+      host.style.width = "1280px";
+      let save = freshSave(),
+        selected = "alpha",
+        eco = false;
+      for (const id of ["alpha", "beta"]) {
+        save = createProject(save, id, `Project ${id}`);
+        save = addMilestone(save, id, `${id}-m`, "First milestone");
+        for (let i = 0; i < 4; i++)
+          save = addProjectTask(
+            save,
+            id,
+            `${id}-m`,
+            `${id}-${i}`,
+            `Task ${id} ${i}`,
+          );
+      }
+      save.missions.push(
+        ...Array.from({ length: 16 }, (_, i) => ({
+          id: `other-${i}`,
+          title: `Unrelated mission ${i}`,
+          done: i < 8,
+          skill: i % 2 ? "craft" : "curiosity",
+        })),
+      );
+      const { FRAGMENT_IDS } = await import("/src/starfall.ts");
+      save.starfall = { fragments: [...FRAGMENT_IDS], beaconLit: true };
+      let engine,
+        reports = [],
+        running = false;
+      function mount() {
+        engine = createExperience(
+          host,
+          save,
+          {
+            visit() {},
+            discover() {},
+            hint() {},
+            nearby() {},
+            manualCamera() {},
+            error(message) {
+              status.textContent = message;
+            },
+          },
+          selected,
+        );
+        engine.eco(eco);
+      }
+      function diagnostics() {
+        return {
+          ...host.querySelector("canvas")?.dataset,
+          canvasCount: host.querySelectorAll("canvas").length,
+        };
+      }
+      function show() {
+        const profile = reports.findLast(
+          (report) => report.kind === "40 unrelated edits",
+        );
+        if (profile)
+          document.querySelector("#summary").textContent =
+            `40 unrelated edits: ${Number(profile.buildsAfter) - Number(profile.buildsBefore)} Workshop rebuilds · ${profile.totalMs.toFixed(1)} ms CPU update time`;
+        results.textContent = JSON.stringify(
+          {
+            browser: navigator.userAgent,
+            viewport: { width: host.clientWidth, height: host.clientHeight },
+            diagnostics: diagnostics(),
+            reports,
+          },
+          null,
+          2,
+        );
+      }
+      function ready() {
+        setRunning(false);
+        status.textContent = "Ready";
+        show();
+      }
+      function setRunning(value) {
+        running = value;
+        for (const button of document.querySelectorAll("button"))
+          button.disabled = value;
+      }
+      async function nextFrame() {
+        await new Promise(requestAnimationFrame);
+      }
+      async function texturesReady() {
+        for (let i = 0; i < 900; i++) {
+          const data = JSON.parse(
+            host.querySelector("canvas")?.dataset.naturalMaterials || "{}",
+          );
+          if (data.loaded + data.failed === data.total) return;
+          await nextFrame();
+        }
+        throw new Error("Texture loading timeout");
+      }
+      function percentile(values, p) {
+        return values[
+          Math.min(values.length - 1, Math.floor(values.length * p))
+        ];
+      }
+      document.querySelector("#profile").onclick = async () => {
+        if (running) return;
+        setRunning(true);
+        status.textContent = "Profiling updates…";
+        await texturesReady();
+        await nextFrame();
+        const before = diagnostics(),
+          times = [];
+        for (let i = 0; i < 40; i++) {
+          save = {
+            ...save,
+            projects: save.projects.map((p) =>
+              p.id === "beta" ? { ...p, title: `Other project edit ${i}` } : p,
+            ),
+            missions: save.missions.map((m) =>
+              m.id === "other-15" ? { ...m, done: i % 2 === 0 } : m,
+            ),
+          };
+          const start = performance.now();
+          engine.update(save);
+          times.push(performance.now() - start);
+        }
+        await nextFrame();
+        await nextFrame();
+        times.sort((a, b) => a - b);
+        reports.push({
+          kind: "40 unrelated edits",
+          buildsBefore: before.workshopBuilds,
+          buildsAfter: diagnostics().workshopBuilds,
+          totalMs: times.reduce((a, b) => a + b, 0),
+          p50Ms: percentile(times, 0.5),
+          p95Ms: percentile(times, 0.95),
+          before,
+          after: diagnostics(),
+        });
+        ready();
+      };
+      document.querySelector("#sample").onclick = async () => {
+        if (running) return;
+        setRunning(true);
+        status.textContent = "Sampling fixed orbit for 12 seconds…";
+        await texturesReady();
+        engine.reset();
+        engine.tour(true);
+        const frames = [],
+          calls = [],
+          triangles = [],
+          start = performance.now();
+        let last = start;
+        while (performance.now() - start < 12000) {
+          await nextFrame();
+          const now = performance.now();
+          frames.push(now - last);
+          last = now;
+          const canvas = host.querySelector("canvas");
+          calls.push(Number(canvas.dataset.drawCalls));
+          triangles.push(Number(canvas.dataset.triangles));
+        }
+        engine.tour(false);
+        frames.shift();
+        frames.sort((a, b) => a - b);
+        const assets = performance
+          .getEntriesByType("resource")
+          .filter((r) => r.name.includes("/textures/natural/"));
+        reports.push({
+          kind: "fixed orbit",
+          eco,
+          durationMs: performance.now() - start,
+          samples: frames.length,
+          p50Ms: percentile(frames, 0.5),
+          p95Ms: percentile(frames, 0.95),
+          p99Ms: percentile(frames, 0.99),
+          drawCallRange: [Math.min(...calls), Math.max(...calls)],
+          triangleRange: [Math.min(...triangles), Math.max(...triangles)],
+          assetRequests: assets.length,
+          encodedBytes: assets.reduce((n, r) => n + r.encodedBodySize, 0),
+          transferBytes: assets.reduce((n, r) => n + r.transferSize, 0),
+          diagnostics: diagnostics(),
+        });
+        ready();
+      };
+      document.querySelector("#eco").onclick = () => {
+        eco = !eco;
+        engine.eco(eco);
+        status.textContent = eco ? "Eco enabled" : "Quality enabled";
+        show();
+      };
+      document.querySelector("#stage").onclick = async () => {
+        const task = save.missions.find(
+          (m) => m.id.startsWith(`${selected}-`) && !m.done,
+        );
+        if (task) save = completeMission(save, task.id);
+        engine.update(save);
+        await nextFrame();
+        show();
+      };
+      document.querySelector("#select").onclick = async () => {
+        selected = selected === "alpha" ? "beta" : "alpha";
+        engine.setProject(selected);
+        await nextFrame();
+        show();
+      };
+      document.querySelector("#cycles").onclick = async () => {
+        if (running) return;
+        setRunning(true);
+        status.textContent = "Cycling renderer…";
+        const counts = [];
+        for (let i = 0; i < 10; i++) {
+          status.textContent = `Cycling renderer ${i + 1}/10…`;
+          engine.dispose();
+          mount();
+          await texturesReady();
+          await nextFrame();
+          counts.push(diagnostics());
+        }
+        reports.push({ kind: "10 renderer cycles", counts });
+        ready();
+      };
+      document.querySelector("#refresh").onclick = show;
+      setRunning(true);
+      mount();
+      window.addEventListener("pagehide", () => engine.dispose(), { once: true });
+      await texturesReady();
+      ready();
+    </script>
+  </body>
+</html>

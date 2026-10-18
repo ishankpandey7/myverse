@@ -15,7 +15,8 @@ import { makeBeaconLight } from "./atmosphere.ts";
 import type { Surface } from "./surfaces";
 import { LAND, TREES, walkable } from "../navigation.ts";
 import { toWorld } from "./coordinates.ts";
-import { OUTFITS, SKINS, PLOTS, projectProgress } from "../../game.ts";
+import { OUTFITS, SKINS, PLOTS } from "../../game.ts";
+import type { WorkshopAppearance } from "./workshop-appearance";
 import type { Avatar, Save, RewardId } from "../../game";
 import { BEACON, FRAGMENTS, FRAGMENT_IDS } from "../../starfall.ts";
 
@@ -773,13 +774,11 @@ export function makeObservatory() {
   return finishModel(group);
 }
 
-export function makeWorkshop(save: Save, projectId: string) {
+export function makeWorkshop({ projectId, stage }: WorkshopAppearance) {
   const group = new T.Group(),
     p = toWorld({ x: 720, y: 410 });
   group.position.set(p.x, 0, p.z);
-  const project = save.projects.find((p) => p.id === projectId),
-    stage = project ? projectProgress(save, project).stage : 0;
-  group.userData = { projectId: project?.id ?? "", stage };
+  group.userData = { projectId, stage };
   group.name = "living-workshop";
   surface(box(group, "#a2a38f", 0, 0.16, 0, 2.8, 0.32, 2.05), "stone");
   box(group, "#355b70", 0, 0.34, 0, 2.5, 0.02, 1.8);
@@ -830,6 +829,18 @@ export function makeWorkshop(save: Save, projectId: string) {
   cylinder(group, "#f0d8a3", -1.73, 1.23, 0.3, 0.06, 0.06, 0.7, 8).rotation.z =
     Math.PI / 2;
   return finishModel(group);
+}
+
+// A same-stage selection updates interaction identity without allocating meshes.
+// The caller owns attachment, materials and disposal when a new stage is returned.
+export function updateWorkshopModel(
+  current: T.Group,
+  appearance: WorkshopAppearance,
+) {
+  if (current.userData.stage !== appearance.stage)
+    return makeWorkshop(appearance);
+  current.userData.projectId = appearance.projectId;
+  return current;
 }
 
 export function makeAvatar(avatar: Avatar) {

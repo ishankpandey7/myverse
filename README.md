@@ -66,6 +66,8 @@ Twelve 1K JPEG maps from [Poly Haven](https://polyhaven.com/) are included local
 
 Tests also cover alignment between 3D ground and navigation, Workshop/garden growth from shared missions, achievement retention, save validation and disposal of shared rendering resources. Garden geometry rebuilds only when a plant changes stage; Classic garden artwork skips walking-frame rerenders. Browser QA uses `localhost:5173`, separate from the owner's `127.0.0.1:5173` save. Physical phone touch input and representative GPU performance still need release testing. The 3D bundle is larger than the original illustrated renderer.
 
+Workshop geometry also rebuilds only at a visible build-stage change. Switching between projects at the same stage updates the selected identity while reusing the model; titles and unrelated mission progress do not discard meshes or materials. React text/progress and shared mission XP continue to update normally.
+
 GitHub stores code and progress history. Vercel is the planned host; Supabase is the planned authentication and cloud database service. Neither is needed to run this local checkpoint. No external account or paid service is created by the starter.
 
 ## Safe saves across tabs
@@ -77,6 +79,8 @@ The save banner reports pending/failed saves and offers session download, saved-
 Without Web Locks, durable writes remain blocked and session editing/export remain available. The lock protects cooperating tabs on the same origin; older clients that bypass it are outside the guarantee. `localhost:5173` and `127.0.0.1:5173` remain separate worlds. This feature does not provide cross-device or cloud backup.
 
 For disposable browser QA, open `/tests/browser/save-coordination.html` on localhost while running Vite. Its Hold/Release controls deliberately delay the shared lock so two real tabs can enqueue competing saves; its newer-save control deliberately writes version 99 to the QA world. Use `?phone=1` for a 393px CSS frame. These development-only fixtures are not copied into `dist`. Never use the owner's 127.0.0.1 world for this workflow.
+
+For rendering measurements, open `/tests/browser/render-benchmark.html` on localhost and wait for Ready. It builds a deterministic populated world entirely in memory, without reading/writing browser saves. Controls profile unrelated edits, sample a fixed 12-second orbit segment in Quality/Eco, advance selected tasks, switch projects and dispose/remount ten renderers. The visible JSON records model identity/build counts, frame cadence and per-renderer resources. See [measured results and limits](docs/performance/2026-10-18-workshop.md); cadence is not GPU timing, and a warm browser sample is not a phone/cold-load guarantee. This fixture is also excluded from `dist`.
 
 Vercel settings: Vite framework, `npm run build`, output directory `dist`. The app currently uses no client-side routes. Add SPA fallback configuration when routes are introduced. Future Supabase access must use per-user row-level security; server secrets must never enter browser code or Git.
 

@@ -4,6 +4,7 @@ import * as T from "three";
 import { createSurfacePalette } from "../src/world/three/surfaces.ts";
 import { LAND, SPAWN, PLACES } from "../src/world/navigation.ts";
 import { toWorld, toIsland } from "../src/world/three/coordinates.ts";
+import { workshopAppearance } from "../src/world/three/workshop-appearance.ts";
 import {
   makeTerrain,
   makeWorkshop,
@@ -48,7 +49,7 @@ test("living Workshop grows from shared mission completion without mutating save
   save = addMilestone(save, "project", "milestone", "Ship it");
   function model(stage) {
     const before = JSON.stringify(save),
-      mesh = makeWorkshop(save, "project");
+      mesh = makeWorkshop(workshopAppearance(save, "project"));
     assert.equal(mesh.userData.stage, stage);
     assert.equal(JSON.stringify(save), before);
     assert.equal(!!mesh.getObjectByName("pitched-roof"), stage >= 2);

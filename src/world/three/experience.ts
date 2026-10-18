@@ -11,6 +11,7 @@ import { makePlanet } from "./celestial";
 import { createSurfacePalette } from "./surfaces";
 import { makeWaterfallMist } from "./atmosphere";
 import { makeGarden } from "./garden";
+import { workshopAppearance } from "./workshop-appearance";
 import { gardenProgress } from "../../growth";
 import { PLACES, SPAWN, distance, findPath, moveBy } from "../navigation";
 import type { Place, Point } from "../navigation";
@@ -24,6 +25,7 @@ import {
   makeHome,
   makeObservatory,
   makeWorkshop,
+  updateWorkshopModel,
   makeAvatar,
   makeStory,
   makeDecorations,
@@ -43,6 +45,7 @@ export function createExperience(
   host: HTMLDivElement,
   initial: Save,
   callbacks: Callbacks,
+  selectedProject = "",
 ) {
   const renderer = new T.WebGLRenderer({
     antialias: true,
@@ -64,6 +67,7 @@ export function createExperience(
       renderer,
       cleanups,
       release,
+      selectedProject,
     );
   } catch (error) {
     release();
@@ -78,6 +82,7 @@ function mountExperience(
   renderer: T.WebGLRenderer,
   cleanups: (() => void)[],
   release: () => void,
+  selectedProject: string,
 ) {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.outputColorSpace = T.SRGBColorSpace;
@@ -163,20 +168,16 @@ function mountExperience(
   const { group: terrain, top: ground, wind, heightAt } = makeTerrain();
   scene.add(terrain, makeHome(), makeObservatory());
   let save = initial,
-    projectId = save.projects.find((p) => !p.archived)?.id ?? "";
-  let workshop = makeWorkshop(save, projectId),
+    projectId = workshopAppearance(save, selectedProject).projectId;
+  let workshop = makeWorkshop(workshopAppearance(save, projectId)),
     avatar = makeAvatar(save.avatar),
     story = makeStory(save),
     decorations = makeDecorations(save);
+  let workshopBuilds = 1;
   scene.add(workshop, avatar.group, story.group, decorations);
   let avatarKey = JSON.stringify(save.avatar),
     storyKey = JSON.stringify(save.starfall),
-    decorationKey = JSON.stringify(save.decorations),
-    projectKey = JSON.stringify([
-      projectId,
-      save.projects,
-      save.missions.map((m) => [m.id, m.done]),
-    ]);
+    decorationKey = JSON.stringify(save.decorations);
   const position = { ...SPAWN };
   const spawn = toWorld(position);
   avatar.group.position.set(spawn.x, heightAt(spawn.x, spawn.z), spawn.z);
@@ -746,6 +747,9 @@ function mountExperience(
       x: String(Math.round(position.x)),
       y: String(Math.round(position.y)),
       buildStage: String(workshop.userData.stage),
+      workshopBuilds: String(workshopBuilds),
+      workshopModel: workshop.uuid,
+      workshopProject: String(workshop.userData.projectId),
       cameraDistance: controls.getDistance().toFixed(2),
       cameraAzimuth: controls.getAzimuthalAngle().toFixed(3),
       cameraPolar: controls.getPolarAngle().toFixed(3),
@@ -766,12 +770,14 @@ function mountExperience(
     canvas.dataset.drawCalls = String(renderer.info.render.calls);
     canvas.dataset.triangles = String(renderer.info.render.triangles);
     canvas.dataset.gpuTextures = String(renderer.info.memory.textures);
+    canvas.dataset.gpuGeometries = String(renderer.info.memory.geometries);
     canvas.dataset.motionTime = waterTime.value.toFixed(2);
     canvas.dataset.reflections = String(!eco);
   }
   frame = requestAnimationFrame(animate);
-  function update(next: Save) {
+  function update(next: Save, selectedProject = projectId) {
     save = next;
+    projectId = selectedProject;
     needsRender = true;
     const gk = JSON.stringify(gardenProgress(next).map((p) => p.stage));
     if (gk !== gardenKey) {
@@ -805,18 +811,17 @@ function mountExperience(
       scene.add(decorations);
       decorationKey = dk;
     }
-    const pk = JSON.stringify([
-      projectId,
-      next.projects,
-      next.missions.map((m) => [m.id, m.done]),
-    ]);
-    if (pk !== projectKey) {
+    const nextWorkshop = updateWorkshopModel(
+      workshop,
+      workshopAppearance(next, projectId),
+    );
+    if (nextWorkshop !== workshop) {
       scene.remove(workshop);
       disposeObject(workshop);
-      workshop = makeWorkshop(next, projectId);
+      workshop = nextWorkshop;
+      workshopBuilds++;
       natural.apply(workshop);
       scene.add(workshop);
-      projectKey = pk;
     }
   }
   return {
@@ -825,8 +830,7 @@ function mountExperience(
     stop,
     update,
     setProject(id: string) {
-      projectId = id;
-      update(save);
+      update(save, id);
     },
     pause(value: boolean) {
       paused = value;
